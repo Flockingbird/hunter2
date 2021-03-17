@@ -612,8 +612,11 @@ checksum = "615caabe2c3160b313d52ccc905335f4ed5f10881dd63dc5699d47e90be85691"
 name = "hunter2"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "elefren",
  "getopts",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
