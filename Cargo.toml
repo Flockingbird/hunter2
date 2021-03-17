@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 elefren = { version = "0.22", features = ["env"] }
+getopts = "0.2"
