@@ -1,44 +1,25 @@
 use elefren::prelude::*;
 use elefren::entities::event::Event;
 use elefren::entities::status::Tag;
+use elefren::entities::account::Account;
 
-use std::env;
+use elefren::helpers::cli;
+use elefren::helpers::env;
+
 use std::error::Error;
 
-struct Conf {
-    base: String,
-    client_id: String,
-    client_secret: String,
-    token: String,
-}
-
-impl Conf {
-    fn from_env() -> Conf {
-        Conf {
-            base: env::var("HUNTER2_BASE").expect("HUNTER2_BASE"),
-            client_id: env::var("HUNTER2_CLIENT_ID").expect("HUNTER2_CLIENT_ID"),
-            client_secret: env::var("HUNTER2_CLIENT_SECRET").expect("HUNTER2_CLIENT_SECRET"),
-            token: env::var("HUNTER2_TOKEN").expect("HUNTER2_TOKEN"),
-        }
-    }
-
-    fn as_data(self) -> Data {
-        Data {
-          base: self.base.into(),
-          client_id: self.client_id.into(),
-          client_secret: self.client_secret.into(),
-          redirect: "urn:ietf:wg:oauth:2.0:oob".into(),
-          token: self.token.into(),
-        }
-    }
-}
-
 fn main() -> Result<(), Box<dyn Error>> {
-    let data = Conf::from_env().as_data();
-    let client = Mastodon::from(data);
+    let mastodon = if let Ok(data) = env::from_env() {
+      Mastodon::from(data)
+    } else {
+        register()?
+    };
 
-    welcome_msg();
-    for event in client.streaming_public()? {
+    let you = mastodon.verify_credentials()?;
+
+    welcome_msg(you);
+
+    for event in mastodon.streaming_public()? {
         match event {
             Event::Update(ref status) => {
                 if has_job_related_tags(&status.tags) {
@@ -53,8 +34,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn welcome_msg() {
-    println!("Hunting for jobs...");
+fn register() -> Result<Mastodon, Box<dyn Error>> {
+    let registration = Registration::new(std::env::var("BASE").expect("BASE"))
+                                    .client_name("hunter2")
+                                    .build()?;
+    let mastodon = cli::authenticate(registration)?;
+
+    // Print the ENV var to screen for copying into whatever we use (.env)
+    println!("Save these env vars in e.g. .env\n");
+    println!("export {}=\"{}\"", "BASE", &mastodon.data.base);
+    println!("export {}=\"{}\"", "CLIENT_ID", &mastodon.data.client_id);
+    println!("export {}=\"{}\"", "CLIENT_SECRET", &mastodon.data.client_secret);
+    println!("export {}=\"{}\"", "REDIRECT", &mastodon.data.redirect);
+    println!("export {}=\"{}\"\n", "TOKEN", &mastodon.data.token);
+
+    Ok(mastodon)
+}
+
+fn welcome_msg(you: Account) {
+    println!("We've sent out {} to hunt for jobs...", you.display_name);
 }
 
 fn has_job_related_tags(tags: &Vec<Tag>) -> bool {

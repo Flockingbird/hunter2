@@ -329,6 +329,7 @@ checksum = "ba08a959d3824df696d49c2ec023f45851f663c47b57b2de933aab749104cd18"
 dependencies = [
  "chrono",
  "doc-comment",
+ "envy",
  "hyper-old-types",
  "isolang",
  "log",
@@ -352,6 +353,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "80df024fbc5ac80f87dfef0d9f5209a252f2a497f7f42944cff24d8253cac065"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "envy"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f47e0157f2cb54f5ae1bd371b30a2ae4311e1c028f575cd4e81de7353215965"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -594,7 +604,6 @@ name = "hunter2"
 version = "0.1.0"
 dependencies = [
  "elefren",
- "serde_json",
 ]
 
 [[package]]
