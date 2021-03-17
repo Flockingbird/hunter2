@@ -1,6 +1,6 @@
 use elefren::prelude::*;
 use elefren::entities::event::Event;
-use elefren::entities::status::Status;
+use elefren::entities::status::Tag;
 
 use std::env;
 use std::error::Error;
@@ -33,14 +33,15 @@ impl Conf {
     }
 }
 
-fn main() -> Result<(), Box<Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let data = Conf::from_env().as_data();
     let client = Mastodon::from(data);
 
+    welcome_msg();
     for event in client.streaming_public()? {
         match event {
             Event::Update(ref status) => {
-                if is_job_related(status) {
+                if has_job_related_tags(&status.tags) {
                     println!("{:#?}", status);
                 }
             },
@@ -52,9 +53,47 @@ fn main() -> Result<(), Box<Error>> {
     Ok(())
 }
 
-fn is_job_related(status: &Status) -> bool {
+fn welcome_msg() {
+    println!("Hunting for jobs...");
+}
+
+fn has_job_related_tags(tags: &Vec<Tag>) -> bool {
     let job_tags = vec!["jobs", "jobsearch", "joboffer", "hiring", "vacancy"];
 
-    !status.tags.is_empty() &&
-      status.tags.iter().map(|t| t.name.as_str() ).any(|e| job_tags.contains(&e))
+    // INK: debugging why checking for these tags does not work.
+    // Probably best check first for a single tag?
+    !tags.is_empty() &&
+      tags.iter().map(|t| t.name.as_str() ).any(|e| job_tags.contains(&e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_has_job_related_tags_with_jobs_tag() {
+        let tags = vec![Tag { url: "".to_string(), name: "jobs".to_string() }];
+        assert!(has_job_related_tags(&tags))
+    }
+
+    #[test]
+    fn test_has_job_related_tags_with_multiple_tags() {
+        let tags = vec![
+            Tag { url: "".to_string(), name: "jobs".to_string() },
+            Tag { url: "".to_string(), name: "steve".to_string() },
+        ];
+        assert!(has_job_related_tags(&tags))
+    }
+
+    #[test]
+    fn test_has_no_job_related_tags_without_tags() {
+        let tags = vec![];
+        assert!(!has_job_related_tags(&tags))
+    }
+
+    #[test]
+    fn test_has_no_job_related_tags_without_allowed_tags() {
+        let tags = vec![Tag { url: "".to_string(), name: "steve".to_string() }];
+        assert!(!has_job_related_tags(&tags))
+    }
 }

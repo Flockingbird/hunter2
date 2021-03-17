@@ -594,6 +594,7 @@ name = "hunter2"
 version = "0.1.0"
 dependencies = [
  "elefren",
+ "serde_json",
 ]
 
 [[package]]
