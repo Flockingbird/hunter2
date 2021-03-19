@@ -72,8 +72,8 @@ impl Status {
             account: Account::from(owned_status.account),
             content: owned_status.content,
             created_at: owned_status.created_at,
-            media_attachments: Attachment::from_vec(owned_status.media_attachments),
-            tags: Tag::from_vec(owned_status.tags),
+            media_attachments: Attachment::from(owned_status.media_attachments),
+            tags: Tag::from(owned_status.tags),
             card: match owned_status.card {
                 Some(card) => Some(Card::from(card)),
                 None => None,
@@ -97,7 +97,7 @@ impl Account {
 }
 
 impl Attachment {
-    pub fn from_vec(attachments: Vec<attachment::Attachment>) -> Vec<Self> {
+    pub fn from(attachments: Vec<attachment::Attachment>) -> Vec<Self> {
         attachments
             .into_iter()
             .map(|a| {
@@ -121,7 +121,7 @@ impl Attachment {
 }
 
 impl Tag {
-    pub fn from_vec(tags: Vec<status::Tag>) -> Vec<Self> {
+    pub fn from(tags: Vec<status::Tag>) -> Vec<Self> {
         tags.into_iter().map(|t| Tag { name: t.name }).collect()
     }
 }
