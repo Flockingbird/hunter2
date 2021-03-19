@@ -98,22 +98,25 @@ impl Account {
 
 impl Attachment {
     pub fn from_vec(attachments: Vec<attachment::Attachment>) -> Vec<Self> {
-        attachments.into_iter().map(|a| {
-            let media_type = match a.media_type {
-                elefren::entities::attachment::MediaType::Image => MediaType::Image,
-                elefren::entities::attachment::MediaType::Video => MediaType::Video,
-                elefren::entities::attachment::MediaType::Gifv => MediaType::Gifv,
-                elefren::entities::attachment::MediaType::Unknown => MediaType::Unknown,
-            };
+        attachments
+            .into_iter()
+            .map(|a| {
+                let media_type = match a.media_type {
+                    elefren::entities::attachment::MediaType::Image => MediaType::Image,
+                    elefren::entities::attachment::MediaType::Video => MediaType::Video,
+                    elefren::entities::attachment::MediaType::Gifv => MediaType::Gifv,
+                    elefren::entities::attachment::MediaType::Unknown => MediaType::Unknown,
+                };
 
-            Attachment {
-                id: a.id,
-                media_type: media_type,
-                url: a.url,
-                remote_url: a.remote_url,
-                preview_url: a.preview_url,
-            }
-        }).collect()
+                Attachment {
+                    id: a.id,
+                    media_type: media_type,
+                    url: a.url,
+                    remote_url: a.remote_url,
+                    preview_url: a.preview_url,
+                }
+            })
+            .collect()
     }
 }
 

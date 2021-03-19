@@ -1,11 +1,11 @@
 use elefren::entities::event::Event;
 
-use elefren::prelude::*;
 use elefren::helpers::cli;
 use elefren::helpers::env;
+use elefren::prelude::*;
 
-use serde_json;
 use getopts::Options;
+use serde_json;
 
 use std::error::Error;
 
