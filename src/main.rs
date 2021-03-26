@@ -4,14 +4,46 @@ use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
 
-use meilisearch_sdk::{client::*};
+use meilisearch_sdk::client::*;
 
-use getopts::Options;
 use futures::executor::block_on;
+use getopts::Options;
 
 use std::error::Error;
 
 mod vacancy;
+
+struct Output {
+    stdout: bool,
+    meilisearch: bool,
+}
+impl Output {
+    fn handle(&self, status: &elefren::entities::status::Status) {
+        if self.stdout {
+            println!("{:#?}", &status);
+        }
+        if self.meilisearch {
+            Output::into_meilisearch(&status);
+        }
+    }
+
+    fn into_meilisearch(status: &elefren::entities::status::Status) {
+        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+
+        block_on(async move {
+            let vacancy = vacancy::Status::from(status);
+            let client = Client::new(uri.as_str(), key.as_str());
+            let vacancies = client.get_or_create("vacancies").await.unwrap();
+            // TODO: rewrite to accept a list and not single documents.
+            // requires re-thinking how to deal with streaming api.
+            vacancies
+                .add_documents(&[vacancy], Some("id"))
+                .await
+                .unwrap();
+        });
+    }
+}
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
@@ -21,7 +53,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     opts.optflag("r", "register", "register hunter2 with your instance.");
     opts.optflag("f", "follow", "follow live updates.");
     opts.optflag("p", "past", "fetch past updates.");
-    opts.optflag("o", "out", "output to stdout instead of to meilisearch");
+    opts.optflag("o", "out", "output to stdout");
+    opts.optflag("m", "meili", "output to meilisearch");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -41,23 +74,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    let output = Output {
+        stdout: matches.opt_present("o"),
+        meilisearch: matches.opt_present("m"),
+    };
+
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
-
-    let you = mastodon.verify_credentials()?;
-
-    out(welcome_msg(you));
 
     if matches.opt_present("p") {
         // TODO: This method will return duplicates. So we should deduplicate
         for tag in job_tags() {
             for status in mastodon.get_tagged_timeline(tag, false)? {
                 if has_job_related_tags(&status.tags) {
-                    if matches.opt_present("o") {
-                        out(format!("{:#?}", status));
-                    } else {
-                        into_meilisearch(&status);
-                    }
+                    output.handle(&status);
                 }
             }
         }
@@ -68,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             match event {
                 Event::Update(ref status) => {
                     if has_job_related_tags(&status.tags) {
-                        out(format!("{:#?}", status));
+                        output.handle(&status);
                     }
                 }
                 Event::Notification(ref _notification) => { /* .. */ }
@@ -99,30 +129,6 @@ fn register() -> Result<Mastodon, Box<dyn Error>> {
     println!("export {}=\"{}\"\n", "TOKEN", &mastodon.data.token);
 
     Ok(mastodon)
-}
-
-fn welcome_msg(you: elefren::entities::account::Account) -> String {
-    //format!("We've sent out {} to hunt for jobs...", you.display_name)
-    "".to_string()
-}
-
-// TODO: implement some -q or -o to pipe to other parts and pieces and whatnot
-fn out(message: String) {
-    println!("{}", message);
-}
-
-fn into_meilisearch(status: &elefren::entities::status::Status) {
-    let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-    let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-
-    block_on(async move {
-        let vacancy = vacancy::Status::from(status);
-        let client = Client::new(uri.as_str(), key.as_str());
-        let vacancies = client.get_or_create("vacancies").await.unwrap();
-        // TODO: rewrite to accept a list and not single documents.
-        // requires re-thinking how to deal with streaming api.
-        vacancies.add_documents(&[vacancy], Some("id")).await.unwrap();
-    })
 }
 
 fn job_tags() -> Vec<String> {
