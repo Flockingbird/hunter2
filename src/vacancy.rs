@@ -1,9 +1,11 @@
 use chrono::prelude::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use elefren::entities::*;
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+use meilisearch_sdk::document::*;
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Status {
     pub id: String,
     pub uri: String,
@@ -17,7 +19,7 @@ pub struct Status {
     pub language: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Account {
     pub acct: String,
     pub avatar: String,
@@ -27,7 +29,7 @@ pub struct Account {
     pub username: String,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Attachment {
     pub id: String,
     #[serde(rename = "type")]
@@ -37,7 +39,7 @@ pub struct Attachment {
     pub preview_url: String,
 }
 
-#[derive(Debug, Serialize, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq)]
 pub enum MediaType {
     #[serde(rename = "image")]
     Image,
@@ -49,12 +51,12 @@ pub enum MediaType {
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Tag {
     name: String,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Card {
     url: String,
     title: String,
@@ -80,6 +82,14 @@ impl Status {
             },
             language: owned_status.language,
         }
+    }
+}
+
+impl Document for Status {
+    type UIDType = String;
+
+    fn get_uid(&self) -> &Self::UIDType {
+        &self.id
     }
 }
 
