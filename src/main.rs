@@ -1,139 +1,47 @@
-use elefren::entities::account::Account;
 use elefren::entities::event::Event;
-use elefren::entities::status::Status;
-use elefren::entities::card::Card;
-use elefren::entities::attachment::Attachment;
-use elefren::entities::status::Tag;
-use elefren::prelude::*;
+
 use elefren::helpers::cli;
 use elefren::helpers::env;
+use elefren::prelude::*;
 
-use chrono::prelude::*;
-use serde_json;
-use serde::Serialize;
+use meilisearch_sdk::client::*;
+
+use futures::executor::block_on;
 use getopts::Options;
 
 use std::error::Error;
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
-struct VacancyStatus {
-    pub id: String,
-    pub uri: String,
-    pub url: Option<String>,
-    pub account: VacancyAccount,
-    pub content: String,
-    pub created_at: DateTime<Utc>,
-    pub media_attachments: Vec<VacancyAttachment>,
-    pub tags: Vec<VacancyTag>,
-    pub card: Option<VacancyCard>,
-    pub language: Option<String>,
-}
-#[derive(Debug, Clone, Serialize, PartialEq)]
-struct VacancyAccount {
-    pub acct: String,
-    pub avatar: String,
-    pub avatar_static: String,
-    pub display_name: String,
-    pub url: String,
-    pub username: String,
-}
-#[derive(Debug, Clone, Serialize, PartialEq)]
-struct VacancyAttachment {
-    pub id: String,
-    #[serde(rename = "type")]
-    pub media_type: MediaType,
-    pub url: String,
-    pub remote_url: Option<String>,
-    pub preview_url: String,
-}
-#[derive(Debug, Serialize, Clone, Copy, PartialEq)]
-enum MediaType {
-    #[serde(rename = "image")]
-    Image,
-    #[serde(rename = "video")]
-    Video,
-    #[serde(rename = "gifv")]
-    Gifv,
-    #[serde(rename = "unknown")]
-    Unknown,
-}
-#[derive(Debug, Clone, Serialize, PartialEq)]
-struct VacancyTag {
-    name: String,
-}
-#[derive(Debug, Clone, Serialize, PartialEq)]
-struct VacancyCard {
-    url: String,
-    title: String,
-    description: String,
-    image: Option<String>,
-}
+mod vacancy;
 
-impl VacancyStatus {
-    pub fn from(status: &Status) -> Self {
-        let owned_status = status.to_owned();
-        VacancyStatus {
-            id: owned_status.id,
-            uri: owned_status.uri,
-            url: owned_status.url,
-            account: VacancyAccount::from(owned_status.account),
-            content: owned_status.content,
-            created_at: owned_status.created_at,
-            media_attachments: VacancyAttachment::from_vec(owned_status.media_attachments),
-            tags: VacancyTag::from_vec(owned_status.tags),
-            card: match owned_status.card {
-                Some(card) => Some(VacancyCard::from(card)),
-                None => None,
-            },
-            language: owned_status.language,
+struct Output {
+    stdout: bool,
+    meilisearch: bool,
+}
+impl Output {
+    fn handle(&self, status: &elefren::entities::status::Status) {
+        if self.stdout {
+            println!("{:#?}", &status);
+        }
+        if self.meilisearch {
+            Output::into_meilisearch(&status);
         }
     }
-}
-impl VacancyAccount {
-    pub fn from(account: Account) -> Self {
-        VacancyAccount {
-            acct: account.acct,
-            avatar: account.avatar,
-            avatar_static: account.avatar_static,
-            display_name: account.display_name,
-            url: account.url,
-            username: account.username,
-        }
-    }
-}
-impl VacancyAttachment {
-    pub fn from_vec(attachments: Vec<Attachment>) -> Vec<Self> {
-        attachments.into_iter().map(|a| {
-            let media_type = match a.media_type {
-                Image => MediaType::Image,
-                Video => MediaType::Video,
-                Gifv => MediaType::Gifv,
-                Unknown => MediaType::Unknown,
-            };
 
-            VacancyAttachment {
-                id: a.id,
-                media_type: media_type,
-                url: a.url,
-                remote_url: a.remote_url,
-                preview_url: a.preview_url,
-            }
-        }).collect()
-    }
-}
-impl VacancyTag {
-    pub fn from_vec(tags: Vec<Tag>) -> Vec<Self> {
-        tags.into_iter().map(|t| VacancyTag { name: t.name }).collect()
-    }
-}
-impl VacancyCard {
-    pub fn from(card: Card) -> Self {
-        VacancyCard {
-            url: card.url,
-            title: card.title,
-            description: card.description,
-            image: card.image,
-        }
+    fn into_meilisearch(status: &elefren::entities::status::Status) {
+        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+
+        block_on(async move {
+            let vacancy = vacancy::Status::from(status);
+            let client = Client::new(uri.as_str(), key.as_str());
+            let vacancies = client.get_or_create("vacancies").await.unwrap();
+            // TODO: rewrite to accept a list and not single documents.
+            // requires re-thinking how to deal with streaming api.
+            vacancies
+                .add_documents(&[vacancy], Some("id"))
+                .await
+                .unwrap();
+        });
     }
 }
 
@@ -145,6 +53,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     opts.optflag("r", "register", "register hunter2 with your instance.");
     opts.optflag("f", "follow", "follow live updates.");
     opts.optflag("p", "past", "fetch past updates.");
+    opts.optflag("o", "out", "output to stdout");
+    opts.optflag("m", "meili", "output to meilisearch");
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -164,19 +74,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    let output = Output {
+        stdout: matches.opt_present("o"),
+        meilisearch: matches.opt_present("m"),
+    };
+
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
-
-    let you = mastodon.verify_credentials()?;
-
-    out(welcome_msg(you));
 
     if matches.opt_present("p") {
         // TODO: This method will return duplicates. So we should deduplicate
         for tag in job_tags() {
             for status in mastodon.get_tagged_timeline(tag, false)? {
                 if has_job_related_tags(&status.tags) {
-                    out(publish(&status));
+                    output.handle(&status);
                 }
             }
         }
@@ -187,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             match event {
                 Event::Update(ref status) => {
                     if has_job_related_tags(&status.tags) {
-                        out(publish(status));
+                        output.handle(&status);
                     }
                 }
                 Event::Notification(ref _notification) => { /* .. */ }
@@ -220,21 +131,6 @@ fn register() -> Result<Mastodon, Box<dyn Error>> {
     Ok(mastodon)
 }
 
-fn welcome_msg(you: Account) -> String {
-    //format!("We've sent out {} to hunt for jobs...", you.display_name)
-    "".to_string()
-}
-
-fn publish(status: &Status) -> String {
-    let vacancy = VacancyStatus::from(status);
-    format!("{}", serde_json::to_string(&vacancy).unwrap())
-}
-
-// TODO: implement some -q or -o to pipe to other parts and pieces and whatnot
-fn out(message: String) {
-    println!("{}", message);
-}
-
 fn job_tags() -> Vec<String> {
     vec![
         "jobs".to_string(),
@@ -245,7 +141,7 @@ fn job_tags() -> Vec<String> {
     ]
 }
 
-fn has_job_related_tags(tags: &Vec<Tag>) -> bool {
+fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
     // INK: debugging why checking for these tags does not work.
     // Probably best check first for a single tag?
     !tags.is_empty()
