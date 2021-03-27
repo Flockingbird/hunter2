@@ -142,8 +142,6 @@ fn job_tags() -> Vec<String> {
 }
 
 fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
-    // INK: debugging why checking for these tags does not work.
-    // Probably best check first for a single tag?
     !tags.is_empty()
         && tags
             .iter()
