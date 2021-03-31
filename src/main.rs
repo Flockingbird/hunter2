@@ -3,6 +3,7 @@ use elefren::entities::event::Event;
 use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
+use elefren::Language;
 
 use futures::executor::block_on;
 use getopts::Options;
@@ -31,11 +32,18 @@ impl Output {
         }
     }
     fn progress(&self, message: String) {
-        if self.stdout { eprintln!("{}", message); }
+        if self.stdout {
+            eprintln!("{}", message);
+        }
+    }
+    fn error(&self, message: String) {
+        eprintln!("{}", message);
     }
 
     fn into_stdout<T: Debug>(&self, status: T) {
-        if self.stdout { println!("{:#?}", &status) }
+        if self.stdout {
+            println!("{:#?}", &status)
+        }
     }
 
     fn into_meilisearch(status: &elefren::entities::status::Status) {
@@ -44,8 +52,7 @@ impl Output {
         let vacancy = vacancy::Status::from(status);
         vacancy.into_meili(uri, key);
 
-        block_on(async move {
-        });
+        block_on(async move {});
     }
 }
 
@@ -106,12 +113,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         let updates_thread = capture_updates(mastodon, output);
 
         match notifications_thread.join() {
-            Ok(_) => { },
-            Err(e) => { panic::resume_unwind(e) }
+            Ok(_) => {}
+            Err(e) => panic::resume_unwind(e),
         };
         match updates_thread.join() {
-            Ok(_) => { },
-            Err(e) => { panic::resume_unwind(e) }
+            Ok(_) => {}
+            Err(e) => panic::resume_unwind(e),
         };
     }
 
@@ -177,7 +184,9 @@ fn capture_notifications(mastodon: elefren::Mastodon, output: Output) -> thread:
                 Event::Notification(ref notification) => {
                     if let Some(status) = &notification.status {
                         if has_indexme_request(&status.content) {
-                            output.into_stdout(&notification)
+                            output.into_stdout(&notification);
+                        } else {
+                            reply_dont_understand(&status, mastodon.clone(), output.clone());
                         }
                     }
                 }
@@ -203,6 +212,38 @@ fn capture_updates(mastodon: elefren::Mastodon, output: Output) -> thread::JoinH
             }
         }
     })
+}
+
+fn reply_dont_understand(
+    in_reply_to: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+    output: Output,
+) {
+    // Duplicate in order to move into thread.
+    let id = in_reply_to.id.clone();
+
+    let thread = thread::spawn(move || {
+        let reply = StatusBuilder::new()
+            .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
+            .language(Language::Eng)
+            .in_reply_to(id)
+            .build();
+        match reply {
+            Ok(status) => {
+                match mastodon.new_status(status) {
+                    Ok(_) => output.into_stdout("Replied with instructions."),
+                    Err(exception) => output.error(format!("{:?}", exception)),
+                };
+            }
+            Err(exception) => output.error(format!("{:?}", exception)),
+        };
+    });
+
+    // TODO: Handle thread errors centrally instead of thhe christmastree above
+    match thread.join() {
+        Ok(_) => {}
+        Err(_) => {}
+    }
 }
 
 #[cfg(test)]
@@ -251,13 +292,15 @@ mod tests {
 
     #[test]
     fn test_notification_has_request_to_index_with_phrase() {
-        let content = String::from("<p>Hi there, @hunter2@example.com, please index me, if you will?<p>");
+        let content =
+            String::from("<p>Hi there, @hunter2@example.com, please index me, if you will?<p>");
         assert!(has_indexme_request(&content))
     }
 
     #[test]
     fn test_notification_has_request_to_index_with_tag() {
-        let content = String::from("<p>please <a href=\"\">#<span>vacancy</span>indexme<span></a>!<p>");
+        let content =
+            String::from("<p>please <a href=\"\">#<span>vacancy</span>indexme<span></a>!<p>");
         assert!(has_indexme_request(&content))
     }
 

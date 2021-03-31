@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use elefren::entities::*;
 
-use meilisearch_sdk::document::*;
 use meilisearch_sdk::client::*;
+use meilisearch_sdk::document::*;
 
 pub trait IntoMeili {
     fn into_meili(&self, uri: String, key: String);
@@ -109,10 +109,7 @@ impl IntoMeili for Status {
 
             // TODO: rewrite to accept a list and not single documents.
             // requires re-thinking how to deal with streaming api.
-            index
-                .add_documents(&[vacancy], Some("id"))
-                .await
-                .unwrap();
+            index.add_documents(&[vacancy], Some("id")).await.unwrap();
         });
     }
 }
