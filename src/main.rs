@@ -3,45 +3,56 @@ use elefren::entities::event::Event;
 use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
-
-use meilisearch_sdk::client::*;
+use elefren::Language;
 
 use futures::executor::block_on;
 use getopts::Options;
+use regex::Regex;
 
+use core::fmt::Debug;
 use std::error::Error;
+use std::{panic, thread};
+
+#[macro_use]
+extern crate lazy_static;
 
 mod vacancy;
+use vacancy::IntoMeili;
 
+#[derive(Clone)]
 struct Output {
     stdout: bool,
     meilisearch: bool,
 }
 impl Output {
     fn handle(&self, status: &elefren::entities::status::Status) {
-        if self.stdout {
-            println!("{:#?}", &status);
-        }
+        self.into_stdout(status);
         if self.meilisearch {
             Output::into_meilisearch(&status);
+        }
+    }
+    fn progress(&self, message: String) {
+        if self.stdout {
+            eprintln!("{}", message);
+        }
+    }
+    fn error(&self, message: String) {
+        eprintln!("{}", message);
+    }
+
+    fn into_stdout<T: Debug>(&self, status: T) {
+        if self.stdout {
+            println!("{:#?}", &status)
         }
     }
 
     fn into_meilisearch(status: &elefren::entities::status::Status) {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+        let vacancy = vacancy::Status::from(status);
+        vacancy.into_meili(uri, key);
 
-        block_on(async move {
-            let vacancy = vacancy::Status::from(status);
-            let client = Client::new(uri.as_str(), key.as_str());
-            let vacancies = client.get_or_create("vacancies").await.unwrap();
-            // TODO: rewrite to accept a list and not single documents.
-            // requires re-thinking how to deal with streaming api.
-            vacancies
-                .add_documents(&[vacancy], Some("id"))
-                .await
-                .unwrap();
-        });
+        block_on(async move {});
     }
 }
 
@@ -94,18 +105,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     if matches.opt_present("f") {
-        for event in mastodon.streaming_public()? {
-            match event {
-                Event::Update(ref status) => {
-                    if has_job_related_tags(&status.tags) {
-                        output.handle(&status);
-                    }
-                }
-                Event::Notification(ref _notification) => { /* .. */ }
-                Event::Delete(ref _id) => { /* .. */ }
-                Event::FiltersChanged => { /* .. */ }
-            }
-        }
+        // Give every thread its own client and its own output.
+        output.progress(String::from(" 📨 Listening for indexme requests"));
+        let notifications_thread = capture_notifications(mastodon.clone(), output.clone());
+
+        output.progress(String::from(" 📨 Listening for vacancies"));
+        let updates_thread = capture_updates(mastodon, output);
+
+        match notifications_thread.join() {
+            Ok(_) => {}
+            Err(e) => panic::resume_unwind(e),
+        };
+        match updates_thread.join() {
+            Ok(_) => {}
+            Err(e) => panic::resume_unwind(e),
+        };
     }
 
     Ok(())
@@ -142,8 +156,6 @@ fn job_tags() -> Vec<String> {
 }
 
 fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
-    // INK: debugging why checking for these tags does not work.
-    // Probably best check first for a single tag?
     !tags.is_empty()
         && tags
             .iter()
@@ -151,14 +163,93 @@ fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
             .any(|e| job_tags().contains(&e))
 }
 
+fn has_indexme_request(content: &String) -> bool {
+    // Matches "... index me ...", "indexme" etc. But not "index like me" or "reindex meebo"
+    lazy_static! {
+        static ref RE: Regex = Regex::new("\\Windex\\s?me\\W").unwrap();
+    };
+    RE.is_match(content.as_str())
+}
+
 fn print_usage(program: &str, opts: Options) {
     let brief = format!("Usage: {} TEMPLATE_FILE [options]", program);
     print!("{}", opts.usage(&brief));
 }
 
+fn capture_notifications(mastodon: elefren::Mastodon, output: Output) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        for event in mastodon.streaming_user().unwrap() {
+            match event {
+                Event::Update(ref _status) => { /* .. */ }
+                Event::Notification(ref notification) => {
+                    if let Some(status) = &notification.status {
+                        if has_indexme_request(&status.content) {
+                            output.into_stdout(&notification);
+                        } else {
+                            reply_dont_understand(&status, mastodon.clone(), output.clone());
+                        }
+                    }
+                }
+                Event::Delete(ref _id) => { /* .. */ }
+                Event::FiltersChanged => { /* .. */ }
+            }
+        }
+    })
+}
+
+fn capture_updates(mastodon: elefren::Mastodon, output: Output) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        for event in mastodon.streaming_public().unwrap() {
+            match event {
+                Event::Update(ref status) => {
+                    if has_job_related_tags(&status.tags) {
+                        output.handle(&status);
+                    }
+                }
+                Event::Notification(ref _notification) => { /* .. */ }
+                Event::Delete(ref _id) => { /* .. */ }
+                Event::FiltersChanged => { /* .. */ }
+            }
+        }
+    })
+}
+
+fn reply_dont_understand(
+    in_reply_to: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+    output: Output,
+) {
+    // Duplicate in order to move into thread.
+    let id = in_reply_to.id.clone();
+
+    let thread = thread::spawn(move || {
+        let reply = StatusBuilder::new()
+            .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
+            .language(Language::Eng)
+            .in_reply_to(id)
+            .build();
+        match reply {
+            Ok(status) => {
+                match mastodon.new_status(status) {
+                    Ok(_) => output.into_stdout("Replied with instructions."),
+                    Err(exception) => output.error(format!("{:?}", exception)),
+                };
+            }
+            Err(exception) => output.error(format!("{:?}", exception)),
+        };
+    });
+
+    // TODO: Handle thread errors centrally instead of thhe christmastree above
+    match thread.join() {
+        Ok(_) => {}
+        Err(_) => {}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use elefren::entities::status::Tag;
 
     #[test]
     fn test_has_job_related_tags_with_jobs_tag() {
@@ -197,5 +288,37 @@ mod tests {
             name: "steve".to_string(),
         }];
         assert!(!has_job_related_tags(&tags))
+    }
+
+    #[test]
+    fn test_notification_has_request_to_index_with_phrase() {
+        let content =
+            String::from("<p>Hi there, @hunter2@example.com, please index me, if you will?<p>");
+        assert!(has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_request_to_index_with_tag() {
+        let content =
+            String::from("<p>please <a href=\"\">#<span>vacancy</span>indexme<span></a>!<p>");
+        assert!(has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_phrase() {
+        let content = String::from("<p>are you a bot?<p>");
+        assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_stretched_phrase() {
+        let content = String::from("<p>Where is the index? Could you tell me?<p>");
+        assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_partial_words() {
+        let content = String::from("<p>reindex meebo<p>");
+        assert!(!has_indexme_request(&content))
     }
 }
