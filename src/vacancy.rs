@@ -106,7 +106,7 @@ impl IntoMeili for Status {
         let candidate = self.clone();
 
         block_on(async move {
-            let index = client.get_or_create("candidates").await.unwrap();
+            let index = client.get_or_create("vacancies").await.unwrap();
 
             // TODO: rewrite to accept a list and not single documents.
             // requires re-thinking how to deal with streaming api.
@@ -144,7 +144,7 @@ impl IntoMeili for Account {
         let vacancy = self.clone();
 
         block_on(async move {
-            let index = client.get_or_create("vacancies").await.unwrap();
+            let index = client.get_or_create("candidates").await.unwrap();
 
             // TODO: rewrite to accept a list and not single documents.
             // requires re-thinking how to deal with streaming api.

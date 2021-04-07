@@ -113,7 +113,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
-    let receiver_mastodon = mastodon.clone();
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
@@ -140,26 +139,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             " 📨 Listening for vacancies",
         )))
         .unwrap();
-        let updates_thread = capture_updates(mastodon, tx);
+        let updates_thread = capture_updates(mastodon.clone(), tx.clone());
+        let messages_thread = handle_messages(mastodon, rx, output);
 
         notifications_thread.join().unwrap();
         updates_thread.join().unwrap();
-    }
-
-    // Message receivers
-    loop {
-        if let Ok(received) = rx.try_recv() {
-            match received {
-                Message::Vacancy(status) => output.handle_vacancy(&status),
-                Message::IndexMe(status) => output.handle_indexme(&status.account),
-                Message::ReplyDontUnderstand(status) => {
-                    reply_dont_understand(&status, receiver_mastodon.clone()).unwrap();
-                }
-                Message::Generic(msg) => output.into_stdout(msg),
-                Message::Error(msg) => output.error(msg),
-            }
-        }
-        thread::sleep(Duration::from_millis(10));
+        messages_thread.join().unwrap();
+        Ok(())
+    } else {
+        Ok(())
     }
 }
 
@@ -256,24 +244,38 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
+fn handle_messages(mastodon: elefren::Mastodon, rx: Receiver<Message>, output: Output) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            if let Ok(received) = rx.try_recv() {
+                match received {
+                    Message::Vacancy(status) => output.handle_vacancy(&status),
+                    Message::IndexMe(status) => output.handle_indexme(&status.account),
+                    Message::ReplyDontUnderstand(status) => {
+                        reply_dont_understand(&status, mastodon.clone()).unwrap();
+                    }
+                    Message::Generic(msg) => output.into_stdout(msg),
+                    Message::Error(msg) => output.error(msg),
+                }
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
+    })
+}
+
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
 ) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
-    // Duplicate in order to move into thread.
-    let id = in_reply_to.id.clone();
+    let id = &in_reply_to.id;
 
-    let thread = thread::spawn(move || {
-        let reply = StatusBuilder::new()
-            .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
-            .language(Language::Eng)
-            .in_reply_to(id)
-            .build().unwrap();
+    let reply = StatusBuilder::new()
+        .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
+        .language(Language::Eng)
+        .in_reply_to(id)
+        .build().unwrap();
 
-        mastodon.new_status(reply)
-    });
-
-    thread.join().unwrap()
+    mastodon.new_status(reply)
 }
 
 #[cfg(test)]
