@@ -27,6 +27,7 @@ pub struct Status {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Account {
+    pub id: String,
     pub acct: String,
     pub avatar: String,
     pub avatar_static: String,
@@ -77,7 +78,7 @@ impl Status {
             id: owned_status.id,
             uri: owned_status.uri,
             url: owned_status.url,
-            account: Account::from(owned_status.account),
+            account: Account::from(&owned_status.account),
             content: owned_status.content,
             created_at: owned_status.created_at,
             media_attachments: Attachment::from(owned_status.media_attachments),
@@ -102,6 +103,44 @@ impl Document for Status {
 impl IntoMeili for Status {
     fn into_meili(&self, uri: String, key: String) {
         let client = Client::new(uri.as_str(), key.as_str());
+        let candidate = self.clone();
+
+        block_on(async move {
+            let index = client.get_or_create("candidates").await.unwrap();
+
+            // TODO: rewrite to accept a list and not single documents.
+            // requires re-thinking how to deal with streaming api.
+            index.add_documents(&[candidate], Some("id")).await.unwrap();
+        });
+    }
+}
+
+impl Account {
+    pub fn from(account: &account::Account) -> Self {
+        let owned_account = account.to_owned();
+        Account {
+            id: owned_account.id,
+            acct: owned_account.acct,
+            avatar: owned_account.avatar,
+            avatar_static: owned_account.avatar_static,
+            display_name: owned_account.display_name,
+            url: owned_account.url,
+            username: owned_account.username,
+        }
+    }
+}
+
+impl Document for Account {
+    type UIDType = String;
+
+    fn get_uid(&self) -> &Self::UIDType {
+        &self.id
+    }
+}
+
+impl IntoMeili for Account {
+    fn into_meili(&self, uri: String, key: String) {
+        let client = Client::new(uri.as_str(), key.as_str());
         let vacancy = self.clone();
 
         block_on(async move {
@@ -111,19 +150,6 @@ impl IntoMeili for Status {
             // requires re-thinking how to deal with streaming api.
             index.add_documents(&[vacancy], Some("id")).await.unwrap();
         });
-    }
-}
-
-impl Account {
-    pub fn from(account: account::Account) -> Self {
-        Account {
-            acct: account.acct,
-            avatar: account.avatar,
-            avatar_static: account.avatar_static,
-            display_name: account.display_name,
-            url: account.url,
-            username: account.username,
-        }
     }
 }
 

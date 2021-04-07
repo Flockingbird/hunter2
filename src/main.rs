@@ -26,7 +26,8 @@ enum Message {
     Generic(String),
     Error(String),
     Vacancy(elefren::entities::status::Status),
-    Mention(elefren::entities::status::Status),
+    IndexMe(elefren::entities::status::Status),
+    ReplyDontUnderstand(elefren::entities::status::Status),
 }
 
 #[derive(Clone)]
@@ -35,10 +36,16 @@ struct Output {
     meilisearch: bool,
 }
 impl Output {
-    fn handle(&self, status: &elefren::entities::status::Status) {
+    fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
         self.into_stdout(status);
         if self.meilisearch {
-            Output::into_meilisearch(&status);
+            Output::into_meilisearch_vacancy(&status);
+        }
+    }
+    fn handle_indexme(&self, account: &elefren::entities::account::Account) {
+        self.into_stdout(account);
+        if self.meilisearch {
+            Output::into_meilisearch_candidates(&account);
         }
     }
     fn error(&self, message: String) {
@@ -51,11 +58,20 @@ impl Output {
         }
     }
 
-    fn into_meilisearch(status: &elefren::entities::status::Status) {
+    fn into_meilisearch_vacancy(status: &elefren::entities::status::Status) {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let vacancy = vacancy::Status::from(status);
-        vacancy.into_meili(uri, key);
+        let document = vacancy::Status::from(status);
+        document.into_meili(uri, key);
+
+        block_on(async move {});
+    }
+
+    fn into_meilisearch_candidates(account: &elefren::entities::account::Account) {
+        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+        let document = vacancy::Account::from(account);
+        document.into_meili(uri, key);
 
         block_on(async move {});
     }
@@ -97,6 +113,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
+    let receiver_mastodon = mastodon.clone();
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
 
@@ -133,9 +150,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     loop {
         if let Ok(received) = rx.try_recv() {
             match received {
-                Message::Vacancy(status) => output.handle(&status),
-                Message::Mention(status) => {
-                    println!("Mention: {:#?}", status)
+                Message::Vacancy(status) => output.handle_vacancy(&status),
+                Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::ReplyDontUnderstand(status) => {
+                    reply_dont_understand(&status, receiver_mastodon.clone()).unwrap();
                 }
                 Message::Generic(msg) => output.into_stdout(msg),
                 Message::Error(msg) => output.error(msg),
@@ -208,9 +226,9 @@ fn capture_notifications(
                 Event::Notification(notification) => {
                     if let Some(status) = notification.status {
                         if has_indexme_request(&status.content) {
-                            tx.send(Message::Mention(status)).unwrap();
+                            tx.send(Message::IndexMe(status)).unwrap();
                         } else {
-                            reply_dont_understand(&status, mastodon.clone(), tx.clone());
+                            tx.send(Message::ReplyDontUnderstand(status)).unwrap();
                         }
                     }
                 }
@@ -241,11 +259,9 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
-    tx: Sender<Message>,
-) {
+) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
     // Duplicate in order to move into thread.
     let id = in_reply_to.id.clone();
-    let tx_thread = tx.clone();
 
     let thread = thread::spawn(move || {
         let reply = StatusBuilder::new()
@@ -254,17 +270,10 @@ fn reply_dont_understand(
             .in_reply_to(id)
             .build().unwrap();
 
-        match mastodon.new_status(reply) {
-            Ok(_) => tx_thread
-                .send(Message::Generic(String::from("Replied with instructions.")))
-                .unwrap(),
-            Err(exception) => tx_thread
-                .send(Message::Error(format!("{:?}", exception)))
-                .unwrap(),
-        }
+        mastodon.new_status(reply)
     });
 
-    thread.join().unwrap();
+    thread.join().unwrap()
 }
 
 #[cfg(test)]
