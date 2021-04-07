@@ -11,6 +11,8 @@ use regex::Regex;
 
 use core::fmt::Debug;
 use std::error::Error;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::time::Duration;
 use std::{panic, thread};
 
 #[macro_use]
@@ -18,6 +20,14 @@ extern crate lazy_static;
 
 mod vacancy;
 use vacancy::IntoMeili;
+
+#[derive(Debug)]
+enum Message {
+    Generic(String),
+    Error(String),
+    Vacancy(elefren::entities::status::Status),
+    Mention(elefren::entities::status::Status),
+}
 
 #[derive(Clone)]
 struct Output {
@@ -29,11 +39,6 @@ impl Output {
         self.into_stdout(status);
         if self.meilisearch {
             Output::into_meilisearch(&status);
-        }
-    }
-    fn progress(&self, message: String) {
-        if self.stdout {
-            eprintln!("{}", message);
         }
     }
     fn error(&self, message: String) {
@@ -93,36 +98,51 @@ fn main() -> Result<(), Box<dyn Error>> {
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
 
+    let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+
     if matches.opt_present("p") {
         // TODO: This method will return duplicates. So we should deduplicate
         for tag in job_tags() {
             for status in mastodon.get_tagged_timeline(tag, false)? {
                 if has_job_related_tags(&status.tags) {
-                    output.handle(&status);
+                    tx.send(Message::Vacancy(status)).unwrap();
                 }
             }
         }
     }
 
     if matches.opt_present("f") {
+        tx.send(Message::Generic(String::from(
+            " 📨 Listening for indexme requests",
+        )))
+        .unwrap();
         // Give every thread its own client and its own output.
-        output.progress(String::from(" 📨 Listening for indexme requests"));
-        let notifications_thread = capture_notifications(mastodon.clone(), output.clone());
+        let notifications_thread = capture_notifications(mastodon.clone(), tx.clone());
 
-        output.progress(String::from(" 📨 Listening for vacancies"));
-        let updates_thread = capture_updates(mastodon, output);
+        tx.send(Message::Generic(String::from(
+            " 📨 Listening for vacancies",
+        )))
+        .unwrap();
+        let updates_thread = capture_updates(mastodon, tx);
 
-        match notifications_thread.join() {
-            Ok(_) => {}
-            Err(e) => panic::resume_unwind(e),
-        };
-        match updates_thread.join() {
-            Ok(_) => {}
-            Err(e) => panic::resume_unwind(e),
-        };
+        notifications_thread.join().unwrap();
+        updates_thread.join().unwrap();
     }
 
-    Ok(())
+    // Message receivers
+    loop {
+        if let Ok(received) = rx.try_recv() {
+            match received {
+                Message::Vacancy(status) => output.handle(&status),
+                Message::Mention(status) => {
+                    println!("Mention: {:#?}", status)
+                }
+                Message::Generic(msg) => output.into_stdout(msg),
+                Message::Error(msg) => output.error(msg),
+            }
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn register() -> Result<Mastodon, Box<dyn Error>> {
@@ -164,7 +184,8 @@ fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
 }
 
 fn has_indexme_request(content: &String) -> bool {
-    // Matches "... index me ...", "indexme" etc. But not "index like me" or "reindex meebo"
+    // Matches "... index me ...", "indexme" etc.
+    // But not "index like me" or "reindex meebo"
     lazy_static! {
         static ref RE: Regex = Regex::new("\\Windex\\s?me\\W").unwrap();
     };
@@ -176,17 +197,20 @@ fn print_usage(program: &str, opts: Options) {
     print!("{}", opts.usage(&brief));
 }
 
-fn capture_notifications(mastodon: elefren::Mastodon, output: Output) -> thread::JoinHandle<()> {
+fn capture_notifications(
+    mastodon: elefren::Mastodon,
+    tx: Sender<Message>,
+) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for event in mastodon.streaming_user().unwrap() {
             match event {
                 Event::Update(ref _status) => { /* .. */ }
-                Event::Notification(ref notification) => {
-                    if let Some(status) = &notification.status {
+                Event::Notification(notification) => {
+                    if let Some(status) = notification.status {
                         if has_indexme_request(&status.content) {
-                            output.into_stdout(&notification);
+                            tx.send(Message::Mention(status)).unwrap();
                         } else {
-                            reply_dont_understand(&status, mastodon.clone(), output.clone());
+                            reply_dont_understand(&status, mastodon.clone(), tx.clone());
                         }
                     }
                 }
@@ -197,13 +221,13 @@ fn capture_notifications(mastodon: elefren::Mastodon, output: Output) -> thread:
     })
 }
 
-fn capture_updates(mastodon: elefren::Mastodon, output: Output) -> thread::JoinHandle<()> {
+fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for event in mastodon.streaming_public().unwrap() {
             match event {
-                Event::Update(ref status) => {
+                Event::Update(status) => {
                     if has_job_related_tags(&status.tags) {
-                        output.handle(&status);
+                        tx.send(Message::Vacancy(status)).unwrap();
                     }
                 }
                 Event::Notification(ref _notification) => { /* .. */ }
@@ -217,33 +241,30 @@ fn capture_updates(mastodon: elefren::Mastodon, output: Output) -> thread::JoinH
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
-    output: Output,
+    tx: Sender<Message>,
 ) {
     // Duplicate in order to move into thread.
     let id = in_reply_to.id.clone();
+    let tx_thread = tx.clone();
 
     let thread = thread::spawn(move || {
         let reply = StatusBuilder::new()
             .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
             .language(Language::Eng)
             .in_reply_to(id)
-            .build();
-        match reply {
-            Ok(status) => {
-                match mastodon.new_status(status) {
-                    Ok(_) => output.into_stdout("Replied with instructions."),
-                    Err(exception) => output.error(format!("{:?}", exception)),
-                };
-            }
-            Err(exception) => output.error(format!("{:?}", exception)),
-        };
+            .build().unwrap();
+
+        match mastodon.new_status(reply) {
+            Ok(_) => tx_thread
+                .send(Message::Generic(String::from("Replied with instructions.")))
+                .unwrap(),
+            Err(exception) => tx_thread
+                .send(Message::Error(format!("{:?}", exception)))
+                .unwrap(),
+        }
     });
 
-    // TODO: Handle thread errors centrally instead of thhe christmastree above
-    match thread.join() {
-        Ok(_) => {}
-        Err(_) => {}
-    }
+    thread.join().unwrap();
 }
 
 #[cfg(test)]
