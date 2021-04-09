@@ -8,6 +8,7 @@ use elefren::Language;
 use futures::executor::block_on;
 use getopts::Options;
 use regex::Regex;
+use reqwest::{header::ACCEPT, Client};
 
 use core::fmt::Debug;
 use std::error::Error;
@@ -18,6 +19,7 @@ use std::{panic, thread};
 #[macro_use]
 extern crate lazy_static;
 
+mod candidate;
 mod vacancy;
 use vacancy::IntoMeili;
 
@@ -43,7 +45,9 @@ impl Output {
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
-        self.into_stdout(account);
+        let rich_account = fetch_rich_account(&account.acct);
+
+        self.into_stdout(rich_account);
         if self.meilisearch {
             Output::into_meilisearch_candidates(&account);
         }
@@ -244,23 +248,50 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
-fn handle_messages(mastodon: elefren::Mastodon, rx: Receiver<Message>, output: Output) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        loop {
-            if let Ok(received) = rx.try_recv() {
-                match received {
-                    Message::Vacancy(status) => output.handle_vacancy(&status),
-                    Message::IndexMe(status) => output.handle_indexme(&status.account),
-                    Message::ReplyDontUnderstand(status) => {
-                        reply_dont_understand(&status, mastodon.clone()).unwrap();
-                    }
-                    Message::Generic(msg) => output.into_stdout(msg),
-                    Message::Error(msg) => output.error(msg),
+fn handle_messages(
+    mastodon: elefren::Mastodon,
+    rx: Receiver<Message>,
+    output: Output,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || loop {
+        if let Ok(received) = rx.try_recv() {
+            match received {
+                Message::Vacancy(status) => output.handle_vacancy(&status),
+                Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::ReplyDontUnderstand(status) => {
+                    reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
+                Message::Generic(msg) => output.into_stdout(msg),
+                Message::Error(msg) => output.error(msg),
             }
-            thread::sleep(Duration::from_millis(10));
         }
+        thread::sleep(Duration::from_millis(10));
     })
+}
+
+fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Error> {
+    // TODO: handle errors!
+    let res = webfinger::resolve(format!("acct:{}", acct), true).unwrap();
+    let profile_link = res
+        .links
+        .into_iter()
+        .find(|link| link.rel == "self")
+        .unwrap();
+
+    println!("{:#?}", profile_link);
+    if let Some(href) = profile_link.href {
+        let account = Client::new()
+            .get(&href)
+            .header(ACCEPT, profile_link.mime_type.unwrap())
+            .send()
+            .unwrap()
+            .json::<candidate::Account>()
+            .unwrap();
+
+        Ok(account)
+    } else {
+        Err(std::fmt::Error)
+    }
 }
 
 fn reply_dont_understand(
@@ -280,6 +311,10 @@ fn reply_dont_understand(
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::path::Path;
+
     use super::*;
     use elefren::entities::status::Tag;
 
@@ -352,5 +387,17 @@ mod tests {
     fn test_notification_has_no_request_to_index_with_partial_words() {
         let content = String::from("<p>reindex meebo<p>");
         assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_fetch_rich_account_returns_account() -> Result<(), std::io::Error> {
+        let acct = String::from("testing_hunter2@mastodon.online");
+        let path = Path::new("./test/fixtures/hunter2_ap.json");
+        let file = File::open(&path)?;
+        let reader = BufReader::new(file);
+        let expected_account: candidate::Account = serde_json::from_reader(reader)?;
+
+        assert_eq!(fetch_rich_account(&acct).unwrap(), expected_account);
+        Ok(())
     }
 }

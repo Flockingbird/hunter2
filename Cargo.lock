@@ -804,8 +804,10 @@ dependencies = [
  "lazy_static",
  "meilisearch-sdk",
  "regex",
+ "reqwest",
  "serde",
  "serde_json",
+ "webfinger",
 ]
 
 [[package]]
@@ -2442,6 +2444,16 @@ checksum = "59fe19d70f5dacc03f6e46777213facae5ac3801575d56ca6cbd4c93dcd12310"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "webfinger"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b2821f6de671bfbe4792927622004b6f5364068b8edba4f51af14c10b36204e"
+dependencies = [
+ "reqwest",
+ "serde",
 ]
 
 [[package]]
