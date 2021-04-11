@@ -5,7 +5,6 @@ use elefren::helpers::env;
 use elefren::prelude::*;
 use elefren::Language;
 
-use futures::executor::block_on;
 use getopts::Options;
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
@@ -19,9 +18,10 @@ use std::{panic, thread};
 #[macro_use]
 extern crate lazy_static;
 
+mod meili;
+use meili::IntoMeili;
 mod candidate;
 mod vacancy;
-use vacancy::IntoMeili;
 
 #[derive(Debug)]
 enum Message {
@@ -39,17 +39,18 @@ struct Output {
 }
 impl Output {
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
-        self.into_stdout(status);
+        let vacancy = vacancy::Status::from(status);
+        self.into_stdout(&vacancy);
         if self.meilisearch {
-            Output::into_meilisearch_vacancy(&status);
+            Output::into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
-        let rich_account = fetch_rich_account(&account.acct);
-
-        self.into_stdout(rich_account);
-        if self.meilisearch {
-            Output::into_meilisearch_candidates(&account);
+        if let Ok(rich_account) = fetch_rich_account(&account.acct) {
+            self.into_stdout(&rich_account);
+            if self.meilisearch {
+                Output::into_meili(rich_account);
+            }
         }
     }
     fn error(&self, message: String) {
@@ -62,22 +63,15 @@ impl Output {
         }
     }
 
-    fn into_meilisearch_vacancy(status: &elefren::entities::status::Status) {
+    fn into_meili<T>(document: T)
+    where
+        T: IntoMeili,
+        T: Clone
+    {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let document = vacancy::Status::from(status);
-        document.into_meili(uri, key);
-
-        block_on(async move {});
-    }
-
-    fn into_meilisearch_candidates(account: &elefren::entities::account::Account) {
-        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let document = vacancy::Account::from(account);
-        document.into_meili(uri, key);
-
-        block_on(async move {});
+        let owned_doc = document.clone();
+        owned_doc.into_meili(uri, key);
     }
 }
 
@@ -278,7 +272,6 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
         .find(|link| link.rel == "self")
         .unwrap();
 
-    println!("{:#?}", profile_link);
     if let Some(href) = profile_link.href {
         let account = Client::new()
             .get(&href)
