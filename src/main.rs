@@ -67,7 +67,7 @@ impl Output {
     fn into_meili<T>(document: T)
     where
         T: IntoMeili,
-        T: Clone
+        T: Clone,
     {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");

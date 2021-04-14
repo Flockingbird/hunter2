@@ -1,4 +1,4 @@
-use serde::{ Deserialize, Serialize };
+use serde::{Deserialize, Serialize};
 
 use futures::executor::block_on;
 use meilisearch_sdk::client::*;
