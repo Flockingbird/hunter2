@@ -5,9 +5,10 @@ use elefren::helpers::env;
 use elefren::prelude::*;
 use elefren::Language;
 
-use futures::executor::block_on;
 use getopts::Options;
 use regex::Regex;
+use reqwest::{header::ACCEPT, Client};
+use uuid::Uuid;
 
 use core::fmt::Debug;
 use std::error::Error;
@@ -18,8 +19,10 @@ use std::{panic, thread};
 #[macro_use]
 extern crate lazy_static;
 
+mod meili;
+use meili::IntoMeili;
+mod candidate;
 mod vacancy;
-use vacancy::IntoMeili;
 
 #[derive(Debug)]
 enum Message {
@@ -37,15 +40,18 @@ struct Output {
 }
 impl Output {
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
-        self.into_stdout(status);
+        let vacancy = vacancy::Status::from(status);
+        self.into_stdout(&vacancy);
         if self.meilisearch {
-            Output::into_meilisearch_vacancy(&status);
+            Output::into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
-        self.into_stdout(account);
-        if self.meilisearch {
-            Output::into_meilisearch_candidates(&account);
+        if let Ok(rich_account) = fetch_rich_account(&account.acct) {
+            self.into_stdout(&rich_account);
+            if self.meilisearch {
+                Output::into_meili(rich_account);
+            }
         }
     }
     fn error(&self, message: String) {
@@ -58,22 +64,15 @@ impl Output {
         }
     }
 
-    fn into_meilisearch_vacancy(status: &elefren::entities::status::Status) {
+    fn into_meili<T>(document: T)
+    where
+        T: IntoMeili,
+        T: Clone
+    {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let document = vacancy::Status::from(status);
-        document.into_meili(uri, key);
-
-        block_on(async move {});
-    }
-
-    fn into_meilisearch_candidates(account: &elefren::entities::account::Account) {
-        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let document = vacancy::Account::from(account);
-        document.into_meili(uri, key);
-
-        block_on(async move {});
+        let owned_doc = document.clone();
+        owned_doc.into_meili(uri, key);
     }
 }
 
@@ -244,23 +243,55 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
-fn handle_messages(mastodon: elefren::Mastodon, rx: Receiver<Message>, output: Output) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        loop {
-            if let Ok(received) = rx.try_recv() {
-                match received {
-                    Message::Vacancy(status) => output.handle_vacancy(&status),
-                    Message::IndexMe(status) => output.handle_indexme(&status.account),
-                    Message::ReplyDontUnderstand(status) => {
-                        reply_dont_understand(&status, mastodon.clone()).unwrap();
-                    }
-                    Message::Generic(msg) => output.into_stdout(msg),
-                    Message::Error(msg) => output.error(msg),
+fn handle_messages(
+    mastodon: elefren::Mastodon,
+    rx: Receiver<Message>,
+    output: Output,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || loop {
+        if let Ok(received) = rx.try_recv() {
+            output.into_stdout(format!("Handling: {:#?}", received));
+            match received {
+                Message::Vacancy(status) => output.handle_vacancy(&status),
+                Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::ReplyDontUnderstand(status) => {
+                    reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
+                Message::Generic(msg) => output.into_stdout(msg),
+                Message::Error(msg) => output.error(msg),
             }
-            thread::sleep(Duration::from_millis(10));
         }
+        thread::sleep(Duration::from_millis(10));
     })
+}
+
+fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Error> {
+    // TODO: handle errors!
+    let res = webfinger::resolve(format!("acct:{}", acct), true).unwrap();
+    let profile_link = res
+        .links
+        .into_iter()
+        .find(|link| link.rel == "self")
+        .unwrap();
+
+    if let Some(href) = profile_link.href {
+        let mut account = Client::new()
+            .get(&href)
+            .header(ACCEPT, profile_link.mime_type.unwrap())
+            .send()
+            .unwrap()
+            .json::<candidate::Account>()
+            .unwrap();
+
+        let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
+        //&uuid.to_hyphenated().to_string().to_owned()
+        account.ap_id = account.id;
+        account.id = uuid.to_hyphenated().to_string();
+
+        Ok(account)
+    } else {
+        Err(std::fmt::Error)
+    }
 }
 
 fn reply_dont_understand(
@@ -280,6 +311,10 @@ fn reply_dont_understand(
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::path::Path;
+
     use super::*;
     use elefren::entities::status::Tag;
 
@@ -352,5 +387,17 @@ mod tests {
     fn test_notification_has_no_request_to_index_with_partial_words() {
         let content = String::from("<p>reindex meebo<p>");
         assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_fetch_rich_account_returns_account() -> Result<(), std::io::Error> {
+        let acct = String::from("testing_hunter2@mastodon.online");
+        let path = Path::new("./test/fixtures/hunter2_ap.json");
+        let file = File::open(&path)?;
+        let reader = BufReader::new(file);
+        let expected_account: candidate::Account = serde_json::from_reader(reader)?;
+
+        assert_eq!(fetch_rich_account(&acct).unwrap(), expected_account);
+        Ok(())
     }
 }

@@ -7,9 +7,7 @@ use elefren::entities::*;
 use meilisearch_sdk::client::*;
 use meilisearch_sdk::document::*;
 
-pub trait IntoMeili {
-    fn into_meili(&self, uri: String, key: String);
-}
+use crate::meili::IntoMeili;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Status {
@@ -103,14 +101,10 @@ impl Document for Status {
 impl IntoMeili for Status {
     fn into_meili(&self, uri: String, key: String) {
         let client = Client::new(uri.as_str(), key.as_str());
-        let candidate = self.clone();
-
+        let document = self.clone();
         block_on(async move {
             let index = client.get_or_create("vacancies").await.unwrap();
-
-            // TODO: rewrite to accept a list and not single documents.
-            // requires re-thinking how to deal with streaming api.
-            index.add_documents(&[candidate], Some("id")).await.unwrap();
+            index.add_documents(&[document], Some("id")).await.unwrap();
         });
     }
 }
@@ -127,29 +121,6 @@ impl Account {
             url: owned_account.url,
             username: owned_account.username,
         }
-    }
-}
-
-impl Document for Account {
-    type UIDType = String;
-
-    fn get_uid(&self) -> &Self::UIDType {
-        &self.id
-    }
-}
-
-impl IntoMeili for Account {
-    fn into_meili(&self, uri: String, key: String) {
-        let client = Client::new(uri.as_str(), key.as_str());
-        let vacancy = self.clone();
-
-        block_on(async move {
-            let index = client.get_or_create("candidates").await.unwrap();
-
-            // TODO: rewrite to accept a list and not single documents.
-            // requires re-thinking how to deal with streaming api.
-            index.add_documents(&[vacancy], Some("id")).await.unwrap();
-        });
     }
 }
 
