@@ -8,6 +8,7 @@ use elefren::Language;
 use getopts::Options;
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
+use uuid::Uuid;
 
 use core::fmt::Debug;
 use std::error::Error;
@@ -249,6 +250,7 @@ fn handle_messages(
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
+            output.into_stdout(format!("Handling: {:#?}", received));
             match received {
                 Message::Vacancy(status) => output.handle_vacancy(&status),
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
@@ -273,13 +275,18 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
         .unwrap();
 
     if let Some(href) = profile_link.href {
-        let account = Client::new()
+        let mut account = Client::new()
             .get(&href)
             .header(ACCEPT, profile_link.mime_type.unwrap())
             .send()
             .unwrap()
             .json::<candidate::Account>()
             .unwrap();
+
+        let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
+        //&uuid.to_hyphenated().to_string().to_owned()
+        account.ap_id = account.id;
+        account.id = uuid.to_hyphenated().to_string();
 
         Ok(account)
     } else {

@@ -8,7 +8,9 @@ use crate::meili::IntoMeili;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct Account {
-    id: String,
+    pub id: String,
+    #[serde(default)]
+    pub ap_id: String,
     #[serde(rename = "preferredUsername")]
     username: String,
     name: String,
