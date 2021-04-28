@@ -10,6 +10,8 @@ use getopts::Options;
 use log::{debug, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
+use serde::Serialize;
+use serde_json;
 use uuid::Uuid;
 
 use core::fmt::Debug;
@@ -34,6 +36,7 @@ enum Message {
     Vacancy(elefren::entities::status::Status),
     IndexMe(elefren::entities::status::Status),
     ReplyDontUnderstand(elefren::entities::status::Status),
+    Term,
 }
 
 #[derive(Clone)]
@@ -74,13 +77,17 @@ impl Output {
             }
         }
     }
-    fn into_file<T: Debug>(&self, status: T) {
+    fn into_file<T>(&self, status: T)
+    where
+        T: Serialize,
+        T: Debug,
+    {
         match &self.file_name {
             Some(file_name) => {
                 debug!("Writing to {}: {:#?}", file_name, status);
                 let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
-                file.write_all(format!("{:#?}", &status).as_bytes())
-                    .unwrap();
+                let json = serde_json::to_string(&status).unwrap();
+                file.write_all(json.as_bytes()).unwrap();
             }
             None => {}
         }
@@ -108,7 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     opts.optflag("r", "register", "register hunter2 with your instance.");
     opts.optflag("f", "follow", "follow live updates.");
     opts.optflag("p", "past", "fetch past updates.");
-    opts.optopt("o", "out", "output to filename", "FILE");
+    opts.optopt("o", "out", "output to filename as JSONL", "FILE");
     opts.optflag("m", "meili", "output to meilisearch");
 
     let matches = match opts.parse(&args[1..]) {
@@ -136,6 +143,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mastodon = Mastodon::from(data);
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
+    let messages_thread = handle_messages(mastodon.clone(), rx, output);
 
     if matches.opt_present("p") {
         // TODO: This method will return duplicates. So we should deduplicate
@@ -160,16 +168,17 @@ fn main() -> Result<(), Box<dyn Error>> {
             " 📨 Listening for vacancies",
         )))
         .unwrap();
-        let updates_thread = capture_updates(mastodon.clone(), tx.clone());
-        let messages_thread = handle_messages(mastodon, rx, output);
+        let updates_thread = capture_updates(mastodon, tx.clone());
 
         notifications_thread.join().unwrap();
         updates_thread.join().unwrap();
-        messages_thread.join().unwrap();
-        Ok(())
     } else {
-        Ok(())
+        tx.send(Message::Term).unwrap();
     }
+
+
+    messages_thread.join().unwrap();
+    Ok(())
 }
 
 fn register() -> Result<Mastodon, Box<dyn Error>> {
@@ -277,6 +286,7 @@ fn handle_messages(
     rx: Receiver<Message>,
     output: Output,
 ) -> thread::JoinHandle<()> {
+    debug!("opening message handler");
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
             info!("Handling: {:#?}", received);
@@ -287,6 +297,10 @@ fn handle_messages(
                     reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
                 Message::Generic(msg) => info!("{}", msg),
+                Message::Term => {
+                    debug!("closing message handler");
+                    break;
+                }
             }
         }
         thread::sleep(Duration::from_millis(10));
