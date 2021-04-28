@@ -5,13 +5,17 @@ use elefren::helpers::env;
 use elefren::prelude::*;
 use elefren::Language;
 
+use env_logger;
 use getopts::Options;
+use log::{debug, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
 use uuid::Uuid;
 
 use core::fmt::Debug;
 use std::error::Error;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
 use std::{panic, thread};
@@ -27,7 +31,6 @@ mod vacancy;
 #[derive(Debug)]
 enum Message {
     Generic(String),
-    Error(String),
     Vacancy(elefren::entities::status::Status),
     IndexMe(elefren::entities::status::Status),
     ReplyDontUnderstand(elefren::entities::status::Status),
@@ -35,32 +38,51 @@ enum Message {
 
 #[derive(Clone)]
 struct Output {
-    stdout: bool,
+    file_name: Option<String>,
     meilisearch: bool,
 }
 impl Output {
+    fn new(file_name: Option<String>, meilisearch: bool) -> Output {
+        match &file_name {
+            Some(file_name) => {
+                File::create(file_name).unwrap();
+            }
+            None => {}
+        };
+
+        Output {
+            file_name: file_name,
+            meilisearch: meilisearch,
+        }
+    }
+
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
         let vacancy = vacancy::Status::from(status);
-        self.into_stdout(&vacancy);
+        debug!("Handling vacancy: {:#?}", vacancy);
+        self.into_file(&vacancy);
         if self.meilisearch {
             Output::into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
+        debug!("Handling indexme: {:#?}", account);
         if let Ok(rich_account) = fetch_rich_account(&account.acct) {
-            self.into_stdout(&rich_account);
+            debug!("Fetched rich account: {:#?}", rich_account);
+            self.into_file(&rich_account);
             if self.meilisearch {
                 Output::into_meili(rich_account);
             }
         }
     }
-    fn error(&self, message: String) {
-        eprintln!("{}", message);
-    }
-
-    fn into_stdout<T: Debug>(&self, status: T) {
-        if self.stdout {
-            println!("{:#?}", &status)
+    fn into_file<T: Debug>(&self, status: T) {
+        match &self.file_name {
+            Some(file_name) => {
+                debug!("Writing to {}: {:#?}", file_name, status);
+                let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
+                file.write_all(format!("{:#?}", &status).as_bytes())
+                    .unwrap();
+            }
+            None => {}
         }
     }
 
@@ -68,10 +90,12 @@ impl Output {
     where
         T: IntoMeili,
         T: Clone,
+        T: Debug,
     {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
         let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
         let owned_doc = document.clone();
+        debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
         owned_doc.into_meili(uri, key);
     }
 }
@@ -84,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     opts.optflag("r", "register", "register hunter2 with your instance.");
     opts.optflag("f", "follow", "follow live updates.");
     opts.optflag("p", "past", "fetch past updates.");
-    opts.optflag("o", "out", "output to stdout");
+    opts.optopt("o", "out", "output to filename", "FILE");
     opts.optflag("m", "meili", "output to meilisearch");
 
     let matches = match opts.parse(&args[1..]) {
@@ -105,10 +129,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let output = Output {
-        stdout: matches.opt_present("o"),
-        meilisearch: matches.opt_present("m"),
-    };
+    let output = Output::new(matches.opt_str("o"), matches.opt_present("m"));
+    env_logger::init();
 
     let data = env::from_env().unwrap();
     let mastodon = Mastodon::from(data);
@@ -211,10 +233,14 @@ fn capture_notifications(
             match event {
                 Event::Update(ref _status) => { /* .. */ }
                 Event::Notification(notification) => {
+                    debug!("Handling notification: {:#?}", notification);
                     if let Some(status) = notification.status {
+                        debug!("Notification from {}: {}", status.account.acct, status.uri);
                         if has_indexme_request(&status.content) {
+                            debug!("Notification {} is an indexme request", &status.id);
                             tx.send(Message::IndexMe(status)).unwrap();
                         } else {
+                            debug!("Notification {} is not an indexme request", &status.id);
                             tx.send(Message::ReplyDontUnderstand(status)).unwrap();
                         }
                     }
@@ -232,7 +258,10 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
             match event {
                 Event::Update(status) => {
                     if has_job_related_tags(&status.tags) {
+                        debug!("Update {} is a vacancy", &status.id);
                         tx.send(Message::Vacancy(status)).unwrap();
+                    } else {
+                        debug!("Update {} is not a vacancy", &status.id);
                     }
                 }
                 Event::Notification(ref _notification) => { /* .. */ }
@@ -250,15 +279,14 @@ fn handle_messages(
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
-            output.into_stdout(format!("Handling: {:#?}", received));
+            info!("Handling: {:#?}", received);
             match received {
                 Message::Vacancy(status) => output.handle_vacancy(&status),
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
                 Message::ReplyDontUnderstand(status) => {
                     reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
-                Message::Generic(msg) => output.into_stdout(msg),
-                Message::Error(msg) => output.error(msg),
+                Message::Generic(msg) => info!("{}", msg),
             }
         }
         thread::sleep(Duration::from_millis(10));

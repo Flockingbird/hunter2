@@ -7,11 +7,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+env_logger = "0.8"
 elefren = { version = "0.22", features = ["env"] }
 futures = "0.3" # For meilisearch_sdk to access async features
 getopts = "0.2"
 chrono = "0.4"
 lazy_static ="1"
+log = "0.4"
 meilisearch-sdk = "0.6.0"
 regex = "1"
 reqwest = "0.9" # Version should be compat with the one webfinger uses.
