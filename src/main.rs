@@ -203,11 +203,15 @@ fn register() -> Result<Mastodon, Box<dyn Error>> {
 
 fn job_tags() -> Vec<String> {
     vec![
+        "job".to_string(),
         "jobs".to_string(),
         "jobsearch".to_string(),
         "joboffer".to_string(),
         "hiring".to_string(),
         "vacancy".to_string(),
+        "offredemploi".to_string(),
+        "emploi".to_string(),
+        "jobangebot".to_string(),
     ]
 }
 
