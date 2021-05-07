@@ -30,6 +30,11 @@ use meili::IntoMeili;
 mod candidate;
 mod vacancy;
 
+// 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
+// have enough time to process all events that came in during the sleep time on
+// one hand and to keep the load low on the other hand.
+const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
+
 #[derive(Debug)]
 enum Message {
     Generic(String),
@@ -307,7 +312,7 @@ fn handle_messages(
                 }
             }
         }
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(THREAD_SLEEP_DURATION);
     })
 }
 
