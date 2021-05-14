@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flockingbird - Search</title>
+    <link rel="stylesheet" href="/css/vendor/bulma.min.css">
+    <link rel="stylesheet" href="/css/vendor/materialdesignicons.min.css">
+    <link rel="stylesheet" href="/css/application.css">
+    <script charset="utf-8">
+      document.addEventListener('DOMContentLoaded', () => {
+            (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+              var $notification = $delete.parentNode;
+
+              $delete.addEventListener('click', () => {
+                $notification.parentNode.removeChild($notification);
+              });
+            });
+          });
+    </script>
+  </head>
+  <body>
+    <section class="hero">
+      <div class="hero-head pb-0 pt-6 is-brand-bg">
+        <div class="columns is-vcentered">
+          <div class="column is-logo is-2 is-flex is-justify-content-center">
+            <h1 class="title">Flockingbird - Search</h1>
+            <img src="/images/search.png" alt="FlockingBird">
+          </div>
+          <div class="column is-8">
+            <div class="control has-icons-right">
+              <input type="search" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
+              <span class="icon is-large is-right is-brand-color">
+                <span class="mdi mdi-36px mdi-magnify"></span>
+              </span>
+            </div>
+          </div>
+          <div class="column is-2"></div>
+        </div>
+
+        <div class="columns">
+          <div class="column is-2">
+          </div>
+          <div class="column is-8">
+            <div class="tabs is-medium">
+              <ul>
+                <li class="is-active"><a>Openings</a></li>
+                <li><a>Candidates</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="column is-2"></div>
+        </div>
+      </div>
+
+      <div class="hero-body px-0">
+        <div class="columns">
+          <div class="column is-2">
+          </div>
+          <div class="column is-5">
+            <article class="media p-3">
+              <figure class="media-left">
+                <p class="image is-128x128 is-brand-shadowed">
+                  <img src="https://bulma.io/images/placeholders/128x128.png">
+                </p>
+              </figure>
+              <div class="media-content">
+                <div class="content">
+                  <p>
+                    <strong>John Smith</strong> <small>@johnsmith@example.com</small>
+                    <br>
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare magna eros, eu pellentesque tortor vestibulum ut. Maecenas non massa sem. Etiam finibus odio quis feugiat facilisis.
+
+                  </p>
+                  <p>
+                    <span class="tag is-light">Rails</span>
+                    <span class="tag is-light">Rust</span>
+                    <span class="tag is-light">Javascript</span>
+                    <span class="tag is-light">Bash</span>
+                    <span class="tag is-light">Beekeeper</span>
+                    <span class="tag is-light">Linux</span>
+                    <span class="tag is-light">Hacker</span>
+                  </p>
+                </div>
+              </div>
+            </article>
+
+            <article class="media p-3">
+              <figure class="media-left">
+                <p class="image is-128x128 is-brand-shadowed">
+                  <img src="https://bulma.io/images/placeholders/128x128.png">
+                </p>
+              </figure>
+              <div class="media-content">
+                <div class="content">
+                  <p>
+                    <strong>Bob Grey</strong> <small>@bgrey@example.com</small>
+                    <br>
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare magna eros, eu pellentesque tortor vestibulum ut. Maecenas non massa sem. Etiam finibus odio quis feugiat facilisis.
+
+                  </p>
+                  <p>
+                    <span class="tag is-light">Linux</span>
+                    <span class="tag is-light">OSS</span>
+                    <span class="tag is-light">Mastodon</span>
+                  </p>
+                </div>
+              </div>
+            </article>
+          </div>
+          <div class="column is-3">
+            <section class="card is-brand-shadowed">
+              <div class="card-content">
+                <h1 class="title">Help improve these results!</h1>
+                <p class="content">
+                Didn't find the results you were looking for? Flockingbird is in
+                beta and we are still actively developing and refining the
+                software.  Join the discussion in
+                <a class="is-brand-color has-text-weight-semibold" href="https://github.com/Flockingbird/roost/issues/42">community chat</a>
+                or jump into our
+                <a class="is-brand-color has-text-weight-semibold" href="https://github.com/Flockingbird">Github repo</a>
+                and post your feedback.
+                </p>
+              </div>
+          </div>
+          <div class="column is-2">
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
