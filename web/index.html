@@ -11,6 +11,13 @@
     <script charset="utf-8">
       const meiliSearchHost = 'https://meili.flockingbird.social';
       const meiliSearchPubApiKey = '3365f08f0ddf01bf8d5f89d21a73b570f11d28e21818bb99d9c849f9c0d2ac05';
+      const perPage = 5;
+      const client = new MeiliSearch({
+        host: meiliSearchHost,
+        apiKey: meiliSearchPubApiKey,
+      });
+      const index = client.index('vacancies');
+
       document.addEventListener('DOMContentLoaded', () => {
         (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
           var $notification = $delete.parentNode;
@@ -19,12 +26,6 @@
             $notification.parentNode.removeChild($notification);
           });
         });
-
-        const client = new MeiliSearch({
-          host: meiliSearchHost,
-          apiKey: meiliSearchPubApiKey,
-        });
-        const index = client.index('vacancies');
 
         const searchForm = document.getElementById('search-form');
         searchForm.addEventListener('submit', function(event) {
@@ -36,9 +37,47 @@
       const handleSearchField = function(index) {
         const searchField = document.getElementById('search-field');
         const container = document.getElementById('results');
-        index.search(searchField.value).then(function(result) {
-          container.innerHTML = '';
+        const query = searchField.value;
+        removeHits(container);
+        doSearch(index, query, perPage, 0, container);
+      };
+
+      const doSearch = function(index, query, limit, offset, container) {
+        removePager(container);
+        index.search(
+          query,
+          {
+            offset: offset,
+            limit: limit
+          }
+        ).then(function(result) {
           insertHits(result.hits, container);
+          if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
+            insertPager(index, query, limit, offset + perPage, container);
+          }
+        });
+      }
+
+      const insertPager = function(index, query, limit, offset, container) {
+        const page_tmpl = document.getElementById('pager');
+        var clone = page_tmpl.content.cloneNode(true);
+
+        clone.firstElementChild.addEventListener('click', function(event) {
+          event.preventDefault();
+          doSearch(index, query, limit, offset, container);
+        });
+        container.appendChild(clone);
+      };
+
+      const removePager = function(container) {
+        container.querySelectorAll('.pager').forEach(function(pager) {
+          container.removeChild(pager);
+        });
+      };
+
+      const removeHits = function(container) {
+        container.querySelectorAll('article.media').forEach(function(hit) {
+          container.removeChild(hit);
         });
       };
 
@@ -69,7 +108,9 @@
 
             tagElem.firstElementChild.addEventListener('click', function(event) {
               event.preventDefault();
-              searchFor(tag.name);
+              document.getElementById('search-field').value = tag.name;
+              removeHits(container);
+              doSearch(index, tag.name, perPage, 0, container);
             });
             tagContainer.appendChild(tagElem);
           });
@@ -77,14 +118,7 @@
           container.append(clone);
         });
       };
-
-      const searchFor = function(term) {
-        const searchForm = document.getElementById('search-form');
-        const searchField = document.getElementById('search-field');
-        searchField.value = term;
-      };
-
-    </script>
+   </script>
   </head>
 
   <body>
@@ -192,6 +226,9 @@
         <span class="icon">
           <span class="mdi mdi-magnify"></span>
         </span>
+    </template>
+    <template id="pager">
+      <button class="button is-medium is-fullwidth pager">More results</button>
     </template>
   </body>
 </html>
