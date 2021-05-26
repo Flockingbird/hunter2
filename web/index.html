@@ -7,18 +7,86 @@
     <link rel="stylesheet" href="/css/vendor/bulma.min.css">
     <link rel="stylesheet" href="/css/vendor/materialdesignicons.min.css">
     <link rel="stylesheet" href="/css/application.css">
+    <script src='https://cdn.jsdelivr.net/npm/meilisearch@latest/dist/bundles/meilisearch.umd.js'></script>
     <script charset="utf-8">
+      const meiliSearchHost = 'https://meili.flockingbird.social';
+      const meiliSearchPubApiKey = '3365f08f0ddf01bf8d5f89d21a73b570f11d28e21818bb99d9c849f9c0d2ac05';
       document.addEventListener('DOMContentLoaded', () => {
-            (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
-              var $notification = $delete.parentNode;
+        (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+          var $notification = $delete.parentNode;
 
-              $delete.addEventListener('click', () => {
-                $notification.parentNode.removeChild($notification);
-              });
-            });
+          $delete.addEventListener('click', () => {
+            $notification.parentNode.removeChild($notification);
           });
+        });
+
+        const client = new MeiliSearch({
+          host: meiliSearchHost,
+          apiKey: meiliSearchPubApiKey,
+        });
+        const index = client.index('vacancies');
+
+        const searchForm = document.getElementById('search-form');
+        searchForm.addEventListener('submit', function(event) {
+          event.preventDefault();
+          handleSearchField(index);
+        });
+      });
+
+      const handleSearchField = function(index) {
+        const searchField = document.getElementById('search-field');
+        const container = document.getElementById('results');
+        index.search(searchField.value).then(function(result) {
+          container.innerHTML = '';
+          insertHits(result.hits, container);
+        });
+      };
+
+      const insertHits = function(hits, container) {
+        const hit_tmpl = document.getElementById('hit');
+        const tag_tmpl = document.getElementById('tag');
+
+        hits.forEach(function(hit, _index, _array) {
+          var clone = hit_tmpl.content.cloneNode(true);
+
+          clone.querySelector('.excerpt').innerHTML = hit.content;
+          clone.querySelector('.name').innerText = hit.account.display_name;
+          clone.querySelector('.handle').innerText = hit.account.acct;
+
+          var date = Date.parse(hit.created_at);
+          clone.querySelector('.date').innerText = Intl.DateTimeFormat().format(date);
+
+          clone.querySelector('.avatar').src = hit.account.avatar;
+          clone.querySelectorAll('.toot-link').forEach(function(link) {
+            link.href = hit.url;
+          });
+          clone.querySelector('.full-url a.toot-link span.link').innerText = hit.url;
+
+          tagContainer = clone.querySelector('.tags');
+          hit.tags.forEach(function(tag, _index, _array) {
+            var tagElem = tag_tmpl.content.cloneNode(true);
+            tagElem.querySelector('.tag .name').innerText = tag.name;
+
+            tagElem.firstElementChild.addEventListener('click', function(event) {
+              event.preventDefault();
+              searchFor(tag.name);
+            });
+            tagContainer.appendChild(tagElem);
+          });
+
+          container.append(clone);
+        });
+      };
+
+      const searchFor = function(term) {
+        const searchForm = document.getElementById('search-form');
+        const searchField = document.getElementById('search-field');
+        searchField.value = term;
+      };
+
     </script>
   </head>
+
   <body>
     <section class="hero">
       <div class="hero-head pb-0 pt-6 is-brand-bg">
@@ -28,12 +96,20 @@
             <img src="/images/search.png" alt="FlockingBird">
           </div>
           <div class="column is-8">
-            <div class="control has-icons-right">
-              <input type="search" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
-              <span class="icon is-large is-right is-brand-color">
-                <span class="mdi mdi-36px mdi-magnify"></span>
-              </span>
-            </div>
+            <form id="search-form">
+              <div class="field has-addons">
+                <div class="control is-expanded">
+                  <input type="search" id="search-field" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
+                </div>
+                <div class="control">
+                  <button class="button is-large is-rounded is-brand-color">
+                    <span class="icon is-large">
+                      <span class="mdi mdi-36px mdi-magnify"></span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
           <div class="column is-2"></div>
         </div>
@@ -57,56 +133,7 @@
         <div class="columns">
           <div class="column is-2">
           </div>
-          <div class="column is-5">
-            <article class="media p-3">
-              <figure class="media-left">
-                <p class="image is-128x128 is-brand-shadowed">
-                  <img src="https://bulma.io/images/placeholders/128x128.png">
-                </p>
-              </figure>
-              <div class="media-content">
-                <div class="content">
-                  <p>
-                    <strong>John Smith</strong> <small>@johnsmith@example.com</small>
-                    <br>
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare magna eros, eu pellentesque tortor vestibulum ut. Maecenas non massa sem. Etiam finibus odio quis feugiat facilisis.
-
-                  </p>
-                  <p>
-                    <span class="tag is-light">Rails</span>
-                    <span class="tag is-light">Rust</span>
-                    <span class="tag is-light">Javascript</span>
-                    <span class="tag is-light">Bash</span>
-                    <span class="tag is-light">Beekeeper</span>
-                    <span class="tag is-light">Linux</span>
-                    <span class="tag is-light">Hacker</span>
-                  </p>
-                </div>
-              </div>
-            </article>
-
-            <article class="media p-3">
-              <figure class="media-left">
-                <p class="image is-128x128 is-brand-shadowed">
-                  <img src="https://bulma.io/images/placeholders/128x128.png">
-                </p>
-              </figure>
-              <div class="media-content">
-                <div class="content">
-                  <p>
-                    <strong>Bob Grey</strong> <small>@bgrey@example.com</small>
-                    <br>
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Proin ornare magna eros, eu pellentesque tortor vestibulum ut. Maecenas non massa sem. Etiam finibus odio quis feugiat facilisis.
-
-                  </p>
-                  <p>
-                    <span class="tag is-light">Linux</span>
-                    <span class="tag is-light">OSS</span>
-                    <span class="tag is-light">Mastodon</span>
-                  </p>
-                </div>
-              </div>
-            </article>
+          <div id="results" class="column is-5">
           </div>
           <div class="column is-3">
             <section class="card is-brand-shadowed">
@@ -128,5 +155,43 @@
         </div>
       </div>
     </section>
+
+    <template id="hit">
+      <article class="media p-3">
+        <figure class="media-left">
+          <p class="image is-128x128 is-brand-shadowed">
+          <img class="avatar" src="">
+          </p>
+        </figure>
+        <div class="media-content">
+          <div class="content">
+            <p><a href="" class="toot-link">
+              <strong class="name"></strong>
+              <small class="handle"></small>
+              <small class="date"></small>
+            </a></p>
+            <p class="full-url">
+            <a href="" class="toot-link is-brand-colored">
+              <span class="icon is-small">
+                <span class="mdi mdi-chevron-right-circle"></span>
+              </span>
+              <span class="link">
+              </span>
+            </a>
+            </p>
+            <p class="excerpt"></p>
+            <p class="tags">
+            </p>
+          </div>
+        </div>
+      </article>
+    </template>
+    <template id="tag">
+      <span class="tag is-light">
+        <a class="name"></a>
+        <span class="icon">
+          <span class="mdi mdi-magnify"></span>
+        </span>
+    </template>
   </body>
 </html>
