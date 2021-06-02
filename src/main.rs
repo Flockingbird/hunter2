@@ -278,8 +278,6 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                     if has_job_related_tags(&status.tags) {
                         debug!("Update {} is a vacancy", &status.id);
                         tx.send(Message::Vacancy(status)).unwrap();
-                    } else {
-                        debug!("Update {} is not a vacancy", &status.id);
                     }
                 }
                 Event::Notification(ref _notification) => { /* .. */ }
