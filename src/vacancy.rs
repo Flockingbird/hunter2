@@ -17,6 +17,7 @@ pub struct Status {
     pub account: Account,
     pub content: String,
     pub created_at: DateTime<Utc>,
+    pub created_at_ts: i64,
     pub media_attachments: Vec<Attachment>,
     pub tags: Vec<Tag>,
     pub card: Option<Card>,
@@ -79,6 +80,7 @@ impl Status {
             account: Account::from(&owned_status.account),
             content: owned_status.content,
             created_at: owned_status.created_at,
+            created_at_ts: owned_status.created_at.timestamp_millis(),
             media_attachments: Attachment::from(owned_status.media_attachments),
             tags: Tag::from(owned_status.tags),
             card: match owned_status.card {
