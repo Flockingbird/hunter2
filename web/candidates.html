@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flockingbird - Search</title>
+    <title>Flockingbird - Search for Candidates</title>
     <link rel="stylesheet" href="/css/vendor/bulma.min.css">
     <link rel="stylesheet" href="/css/vendor/materialdesignicons.min.css">
     <link rel="stylesheet" href="/css/application.css">
@@ -16,7 +16,7 @@
         host: meiliSearchHost,
         apiKey: meiliSearchPubApiKey,
       });
-      const index = client.index('vacancies');
+      const index = client.index('candidates');
 
       document.addEventListener('DOMContentLoaded', () => {
         (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
@@ -88,21 +88,18 @@
         hits.forEach(function(hit, _index, _array) {
           var clone = hit_tmpl.content.cloneNode(true);
 
-          clone.querySelector('.excerpt').innerHTML = hit.content;
-          clone.querySelector('.name').innerText = hit.account.display_name;
-          clone.querySelector('.handle').innerText = hit.account.acct;
+          clone.querySelector('.excerpt').innerHTML = hit.summary;
+          clone.querySelector('.name').innerText = hit.name;
+          clone.querySelector('.handle').innerText = hit.preferredUsername;
 
-          var date = Date.parse(hit.created_at);
-          clone.querySelector('.date').innerText = Intl.DateTimeFormat().format(date);
-
-          clone.querySelector('.avatar').src = hit.account.avatar;
+          clone.querySelector('.avatar').src = hit.icon.url;
           clone.querySelectorAll('.toot-link').forEach(function(link) {
             link.href = hit.url;
           });
           clone.querySelector('.full-url a.toot-link span.link').innerText = hit.url;
 
           tagContainer = clone.querySelector('.tags');
-          hit.tags.forEach(function(tag, _index, _array) {
+          hit.tag.forEach(function(tag, _index, _array) {
             var tagElem = tag_tmpl.content.cloneNode(true);
             tagElem.querySelector('.tag .name').innerText = tag.name;
 
@@ -126,14 +123,14 @@
       <div class="hero-head pb-0 pt-6 is-brand-bg">
         <div class="columns is-vcentered">
           <div class="column is-logo is-2 is-flex is-justify-content-center">
-            <h1 class="title">Flockingbird - Search</h1>
+            <h1 class="title">Flockingbird - Search for Candidates</h1>
             <img src="/images/search.png" alt="FlockingBird">
           </div>
           <div class="column is-8">
             <form id="search-form">
               <div class="field has-addons">
                 <div class="control is-expanded">
-                  <input type="search" id="search-field" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
+                  <input type="search" id="search-field" class="input is-large is-rounded" placeholder="Search available candidates on the fediverse here…"/>
                 </div>
                 <div class="control">
                   <button class="button is-large is-rounded is-brand-color">
@@ -154,8 +151,8 @@
           <div class="column is-8">
             <div class="tabs is-medium">
               <ul>
-                <li class="is-active"><a href="/">Openings</a></li>
-                <li><a href="/candidates">Candidates</a></li>
+                <li><a href="/">Openings</a></li>
+                <li class="is-active"><a href="/candidates">Candidates</a></li>
               </ul>
             </div>
           </div>
