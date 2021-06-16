@@ -86,10 +86,12 @@ impl Output {
     where
         T: Serialize,
         T: Debug,
+        T: std::fmt::Display,
     {
         match &self.file_name {
             Some(file_name) => {
                 debug!("Writing to {}: {:#?}", file_name, status);
+                info!("Writing to {}: {}", file_name, status);
                 let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
                 let json = serde_json::to_string(&status).unwrap();
                 file.write_all(json.as_bytes()).unwrap();
@@ -103,12 +105,14 @@ impl Output {
         T: IntoMeili,
         T: Clone,
         T: Debug,
+        T: std::fmt::Display,
     {
         if self.meilisearch {
             let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
             let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
             let owned_doc = document.clone();
             debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
+            info!("Writing to Meili {}: {}", uri, owned_doc);
             owned_doc.into_meili(uri, key);
         }
     }
@@ -355,6 +359,7 @@ fn reply_dont_understand(
         .in_reply_to(id)
         .build().unwrap();
 
+    info!("Replying status with id '{}' with 'dont understand'", id);
     mastodon.new_status(reply)
 }
 

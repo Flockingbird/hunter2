@@ -41,6 +41,16 @@ impl IntoMeili for Account {
     }
 }
 
+impl std::fmt::Display for Account {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "<Account id=\"{}\" username=\"{}\" url=\"{}\">",
+            self.id, self.username, self.url
+        )
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 struct Tag {
     href: String,

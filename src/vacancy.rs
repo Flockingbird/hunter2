@@ -111,6 +111,12 @@ impl IntoMeili for Status {
     }
 }
 
+impl std::fmt::Display for Status {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Status id=\"{}\" uri=\"{}\">", self.id, self.uri)
+    }
+}
+
 impl Account {
     pub fn from(account: &account::Account) -> Self {
         let owned_account = account.to_owned();
