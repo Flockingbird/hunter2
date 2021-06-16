@@ -68,11 +68,9 @@ impl Output {
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
         let vacancy = vacancy::Status::from(status);
         debug!("Handling vacancy: {:#?}", vacancy);
-        if (may_index::may_index(&vacancy.account.url)) {
+        if may_index::may_index(&vacancy.account.url) {
             self.into_file(&vacancy);
-            if self.meilisearch {
-                Output::into_meili(vacancy);
-            }
+            self.into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
@@ -81,9 +79,7 @@ impl Output {
         if let Ok(rich_account) = fetch_rich_account(&account.acct) {
             debug!("Fetched rich account: {:#?}", rich_account);
             self.into_file(&rich_account);
-            if self.meilisearch {
-                Output::into_meili(rich_account);
-            }
+            self.into_meili(rich_account);
         }
     }
     fn into_file<T>(&self, status: T)
@@ -102,17 +98,19 @@ impl Output {
         }
     }
 
-    fn into_meili<T>(document: T)
+    fn into_meili<T>(&self, document: T)
     where
         T: IntoMeili,
         T: Clone,
         T: Debug,
     {
-        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let owned_doc = document.clone();
-        debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
-        owned_doc.into_meili(uri, key);
+        if self.meilisearch {
+            let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+            let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+            let owned_doc = document.clone();
+            debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
+            owned_doc.into_meili(uri, key);
+        }
     }
 }
 
