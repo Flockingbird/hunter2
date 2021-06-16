@@ -336,7 +336,6 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
             .unwrap();
 
         let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
-        //&uuid.to_hyphenated().to_string().to_owned()
         account.ap_id = account.id;
         account.id = uuid.to_hyphenated().to_string();
 
