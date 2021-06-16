@@ -28,6 +28,7 @@ extern crate lazy_static;
 mod meili;
 use meili::IntoMeili;
 mod candidate;
+mod may_index;
 mod vacancy;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
@@ -67,29 +68,30 @@ impl Output {
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
         let vacancy = vacancy::Status::from(status);
         debug!("Handling vacancy: {:#?}", vacancy);
-        self.into_file(&vacancy);
-        if self.meilisearch {
-            Output::into_meili(vacancy);
+        if may_index::may_index(&vacancy.account.url) {
+            self.into_file(&vacancy);
+            self.into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
         debug!("Handling indexme: {:#?}", account);
+        // Indexme is always indexed, regardless of users' indexing preferences.
         if let Ok(rich_account) = fetch_rich_account(&account.acct) {
             debug!("Fetched rich account: {:#?}", rich_account);
             self.into_file(&rich_account);
-            if self.meilisearch {
-                Output::into_meili(rich_account);
-            }
+            self.into_meili(rich_account);
         }
     }
     fn into_file<T>(&self, status: T)
     where
         T: Serialize,
         T: Debug,
+        T: std::fmt::Display,
     {
         match &self.file_name {
             Some(file_name) => {
                 debug!("Writing to {}: {:#?}", file_name, status);
+                info!("Writing to {}: {}", file_name, status);
                 let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
                 let json = serde_json::to_string(&status).unwrap();
                 file.write_all(json.as_bytes()).unwrap();
@@ -98,17 +100,21 @@ impl Output {
         }
     }
 
-    fn into_meili<T>(document: T)
+    fn into_meili<T>(&self, document: T)
     where
         T: IntoMeili,
         T: Clone,
         T: Debug,
+        T: std::fmt::Display,
     {
-        let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-        let owned_doc = document.clone();
-        debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
-        owned_doc.into_meili(uri, key);
+        if self.meilisearch {
+            let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+            let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+            let owned_doc = document.clone();
+            debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
+            info!("Writing to Meili {}: {}", uri, owned_doc);
+            owned_doc.into_meili(uri, key);
+        }
     }
 }
 
@@ -180,7 +186,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         tx.send(Message::Term).unwrap();
     }
-
 
     messages_thread.join().unwrap();
     Ok(())
@@ -333,7 +338,6 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
             .unwrap();
 
         let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
-        //&uuid.to_hyphenated().to_string().to_owned()
         account.ap_id = account.id;
         account.id = uuid.to_hyphenated().to_string();
 
@@ -355,6 +359,7 @@ fn reply_dont_understand(
         .in_reply_to(id)
         .build().unwrap();
 
+    info!("Replying status with id '{}' with 'dont understand'", id);
     mastodon.new_status(reply)
 }
 
