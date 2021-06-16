@@ -28,6 +28,7 @@ extern crate lazy_static;
 mod meili;
 use meili::IntoMeili;
 mod candidate;
+mod may_index;
 mod vacancy;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
@@ -67,13 +68,16 @@ impl Output {
     fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
         let vacancy = vacancy::Status::from(status);
         debug!("Handling vacancy: {:#?}", vacancy);
-        self.into_file(&vacancy);
-        if self.meilisearch {
-            Output::into_meili(vacancy);
+        if (may_index::may_index(&vacancy.account.url)) {
+            self.into_file(&vacancy);
+            if self.meilisearch {
+                Output::into_meili(vacancy);
+            }
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
         debug!("Handling indexme: {:#?}", account);
+        // Indexme is always indexed, regardless of users' indexing preferences.
         if let Ok(rich_account) = fetch_rich_account(&account.acct) {
             debug!("Fetched rich account: {:#?}", rich_account);
             self.into_file(&rich_account);
@@ -180,7 +184,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     } else {
         tx.send(Message::Term).unwrap();
     }
-
 
     messages_thread.join().unwrap();
     Ok(())
