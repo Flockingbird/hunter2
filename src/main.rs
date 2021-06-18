@@ -41,6 +41,7 @@ enum Message {
     Generic(String),
     Vacancy(elefren::entities::status::Status),
     IndexMe(elefren::entities::status::Status),
+    ReplyUnderstood(elefren::entities::status::Status),
     ReplyDontUnderstand(elefren::entities::status::Status),
     Term,
 }
@@ -261,7 +262,8 @@ fn capture_notifications(
                         debug!("Notification from {}: {}", status.account.acct, status.uri);
                         if has_indexme_request(&status.content) {
                             debug!("Notification {} is an indexme request", &status.id);
-                            tx.send(Message::IndexMe(status)).unwrap();
+                            tx.send(Message::IndexMe(status.clone())).unwrap();
+                            tx.send(Message::ReplyUnderstood(status)).unwrap();
                         } else {
                             debug!("Notification {} is not an indexme request", &status.id);
                             tx.send(Message::ReplyDontUnderstand(status)).unwrap();
@@ -305,6 +307,9 @@ fn handle_messages(
             match received {
                 Message::Vacancy(status) => output.handle_vacancy(&status),
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::ReplyUnderstood(status) => {
+                    reply_understood(&status, mastodon.clone()).unwrap();
+                }
                 Message::ReplyDontUnderstand(status) => {
                     reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
@@ -345,6 +350,23 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
     } else {
         Err(std::fmt::Error)
     }
+}
+
+fn reply_understood(
+    in_reply_to: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+    let id = &in_reply_to.id;
+
+    let reply = StatusBuilder::new()
+        .status("Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. If you don't see it, drop us a message, please.")
+        .language(Language::Eng)
+        .in_reply_to(id)
+        .build().unwrap();
+
+    info!("Replying status with id '{}' with 'understood'", id);
+    mastodon.new_status(reply)
+
 }
 
 fn reply_dont_understand(
