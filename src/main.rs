@@ -305,7 +305,10 @@ fn handle_messages(
         if let Ok(received) = rx.try_recv() {
             info!("Handling: {:#?}", received);
             match received {
-                Message::Vacancy(status) => output.handle_vacancy(&status),
+                Message::Vacancy(status) => {
+                    output.handle_vacancy(&status);
+                    mark_favorite(&status, mastodon.clone()).unwrap();
+                }
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
                 Message::ReplyUnderstood(status) => {
                     reply_understood(&status, mastodon.clone()).unwrap();
@@ -350,6 +353,16 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
     } else {
         Err(std::fmt::Error)
     }
+}
+
+fn mark_favorite(
+    status: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+    let id = &status.id;
+
+    info!("Favorited status '{}'", id);
+    mastodon.favourite(id)
 }
 
 fn reply_understood(
