@@ -36,6 +36,8 @@ mod vacancy;
 // one hand and to keep the load low on the other hand.
 const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 
+const CONTACT_HUMAN_MSG:&str = "I am a bot. So please reach out to @flockingbird@fosstodon.org if you want to contact a human.";
+
 #[derive(Debug)]
 enum Message {
     Generic(String),
@@ -372,7 +374,7 @@ fn reply_understood(
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
-        .status("Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. If you don't see it, drop us a message, please.")
+        .status(format!("Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. - {}", CONTACT_HUMAN_MSG))
         .language(Language::Eng)
         .in_reply_to(id)
         .build().unwrap();
@@ -389,7 +391,7 @@ fn reply_dont_understand(
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
-        .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
+        .status(format!("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase? - {}", CONTACT_HUMAN_MSG))
         .language(Language::Eng)
         .in_reply_to(id)
         .build().unwrap();
