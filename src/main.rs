@@ -20,7 +20,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
-use std::{panic, thread};
+use std::thread;
 
 #[macro_use]
 extern crate lazy_static;
@@ -133,7 +133,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            panic!(f.to_string())
+            std::panic::panic_any(f.to_string())
         }
     };
 
