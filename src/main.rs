@@ -20,7 +20,7 @@ use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
-use std::{panic, thread};
+use std::thread;
 
 #[macro_use]
 extern crate lazy_static;
@@ -36,11 +36,14 @@ mod vacancy;
 // one hand and to keep the load low on the other hand.
 const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 
+const CONTACT_HUMAN_MSG:&str = "I am a bot. So please reach out to @flockingbird@fosstodon.org if you want to contact a human.";
+
 #[derive(Debug)]
 enum Message {
     Generic(String),
     Vacancy(elefren::entities::status::Status),
     IndexMe(elefren::entities::status::Status),
+    ReplyUnderstood(elefren::entities::status::Status),
     ReplyDontUnderstand(elefren::entities::status::Status),
     Term,
 }
@@ -132,7 +135,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
         Err(f) => {
-            panic!(f.to_string())
+            std::panic::panic_any(f.to_string())
         }
     };
 
@@ -261,7 +264,8 @@ fn capture_notifications(
                         debug!("Notification from {}: {}", status.account.acct, status.uri);
                         if has_indexme_request(&status.content) {
                             debug!("Notification {} is an indexme request", &status.id);
-                            tx.send(Message::IndexMe(status)).unwrap();
+                            tx.send(Message::IndexMe(status.clone())).unwrap();
+                            tx.send(Message::ReplyUnderstood(status)).unwrap();
                         } else {
                             debug!("Notification {} is not an indexme request", &status.id);
                             tx.send(Message::ReplyDontUnderstand(status)).unwrap();
@@ -303,8 +307,14 @@ fn handle_messages(
         if let Ok(received) = rx.try_recv() {
             info!("Handling: {:#?}", received);
             match received {
-                Message::Vacancy(status) => output.handle_vacancy(&status),
+                Message::Vacancy(status) => {
+                    output.handle_vacancy(&status);
+                    mark_favorite(&status, mastodon.clone()).unwrap();
+                }
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::ReplyUnderstood(status) => {
+                    reply_understood(&status, mastodon.clone()).unwrap();
+                }
                 Message::ReplyDontUnderstand(status) => {
                     reply_dont_understand(&status, mastodon.clone()).unwrap();
                 }
@@ -347,6 +357,33 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
     }
 }
 
+fn mark_favorite(
+    status: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+    let id = &status.id;
+
+    info!("Favorited status '{}'", id);
+    mastodon.favourite(id)
+}
+
+fn reply_understood(
+    in_reply_to: &elefren::entities::status::Status,
+    mastodon: elefren::Mastodon,
+) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+    let id = &in_reply_to.id;
+
+    let reply = StatusBuilder::new()
+        .status(format!("Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. - {}", CONTACT_HUMAN_MSG))
+        .language(Language::Eng)
+        .in_reply_to(id)
+        .build().unwrap();
+
+    info!("Replying status with id '{}' with 'understood'", id);
+    mastodon.new_status(reply)
+
+}
+
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
@@ -354,7 +391,7 @@ fn reply_dont_understand(
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
-        .status("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase?")
+        .status(format!("I'm sorry, I don't understand that. I only understand requests to 'index me', did you forget that phrase? - {}", CONTACT_HUMAN_MSG))
         .language(Language::Eng)
         .in_reply_to(id)
         .build().unwrap();
