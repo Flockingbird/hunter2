@@ -70,8 +70,8 @@ impl Output {
         let vacancy = vacancy::Status::from(status);
         debug!("Handling vacancy: {:#?}", vacancy);
         if may_index::may_index(&vacancy.account.url) {
-            self.into_file(&vacancy);
-            self.into_meili(vacancy);
+            self.write_into_file(&vacancy);
+            self.write_into_meili(vacancy);
         }
     }
     fn handle_indexme(&self, account: &elefren::entities::account::Account) {
@@ -79,11 +79,11 @@ impl Output {
         // Indexme is always indexed, regardless of users' indexing preferences.
         if let Ok(rich_account) = fetch_rich_account(&account.acct) {
             debug!("Fetched rich account: {:#?}", rich_account);
-            self.into_file(&rich_account);
-            self.into_meili(rich_account);
+            self.write_into_file(&rich_account);
+            self.write_into_meili(rich_account);
         }
     }
-    fn into_file<T>(&self, status: T)
+    fn write_into_file<T>(&self, status: T)
     where
         T: Serialize,
         T: Debug,
@@ -101,7 +101,7 @@ impl Output {
         }
     }
 
-    fn into_meili<T>(&self, document: T)
+    fn write_into_meili<T>(&self, document: T)
     where
         T: IntoMeili,
         T: Clone,
@@ -114,7 +114,7 @@ impl Output {
             let owned_doc = document;
             debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
             info!("Writing to Meili {}: {}", uri, owned_doc);
-            owned_doc.into_meili(uri, key);
+            owned_doc.write_into_meili(uri, key);
         }
     }
 }

@@ -98,7 +98,7 @@ impl Document for Status {
 }
 
 impl IntoMeili for Status {
-    fn into_meili(&self, uri: String, key: String) {
+    fn write_into_meili(&self, uri: String, key: String) {
         let client = Client::new(uri.as_str(), key.as_str());
         let document = self.clone();
         block_on(async move {

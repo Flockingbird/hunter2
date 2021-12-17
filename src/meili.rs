@@ -1,3 +1,3 @@
 pub trait IntoMeili {
-    fn into_meili(&self, uri: String, key: String);
+    fn write_into_meili(&self, uri: String, key: String);
 }
