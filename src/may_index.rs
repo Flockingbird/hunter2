@@ -23,16 +23,12 @@ fn determine_meta_robots(html: &str) -> bool {
 
     if let Some(robots_meta) = fragment.select(&selector).next() {
         if let Some(content) = robots_meta.value().attr("content") {
-            if content.contains("noindex") || content.contains("none") {
-                return false;
-            } else {
-                return true;
-            }
+            !(content.contains("noindex") || content.contains("none"))
         } else {
-            return true;
+            true
         }
     } else {
-        return true;
+        true
     }
 }
 
