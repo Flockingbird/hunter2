@@ -111,7 +111,7 @@ impl Output {
         if self.meilisearch {
             let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
             let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-            let owned_doc = document.clone();
+            let owned_doc = document;
             debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
             info!("Writing to Meili {}: {}", uri, owned_doc);
             owned_doc.into_meili(uri, key);
@@ -183,7 +183,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             " 📨 Listening for vacancies",
         )))
         .unwrap();
-        let updates_thread = capture_updates(mastodon, tx.clone());
+        let updates_thread = capture_updates(mastodon, tx);
 
         notifications_thread.join().unwrap();
         updates_thread.join().unwrap();
