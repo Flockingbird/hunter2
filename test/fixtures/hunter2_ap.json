@@ -83,17 +83,17 @@
   "tag": [
     {
       "type": "Hashtag",
-      "href": "https://mastodon.online/explore/testing",
+      "href": "https://mastodon.online/tags/testing",
       "name": "#testing"
     },
     {
       "type": "Hashtag",
-      "href": "https://mastodon.online/explore/forhire",
+      "href": "https://mastodon.online/tags/forhire",
       "name": "#forhire"
     },
     {
       "type": "Hashtag",
-      "href": "https://mastodon.online/explore/flockinbird",
+      "href": "https://mastodon.online/tags/flockinbird",
       "name": "#flockinbird"
     }
   ],

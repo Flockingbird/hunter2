@@ -494,9 +494,13 @@ mod tests {
         let path = Path::new("./test/fixtures/hunter2_ap.json");
         let file = File::open(&path)?;
         let reader = BufReader::new(file);
-        let expected_account: candidate::Account = serde_json::from_reader(reader)?;
+        let actual_account = fetch_rich_account(&acct).unwrap();
 
-        assert_eq!(fetch_rich_account(&acct).unwrap(), expected_account);
+        let mut expected_account: candidate::Account = serde_json::from_reader(reader)?;
+        expected_account.ap_id = expected_account.id;
+        expected_account.id = actual_account.id.clone();
+
+        assert_eq!(actual_account, expected_account);
         Ok(())
     }
 }
