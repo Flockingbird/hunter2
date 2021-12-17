@@ -226,7 +226,7 @@ fn job_tags() -> Vec<String> {
     ]
 }
 
-fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
+fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {
     !tags.is_empty()
         && tags
             .iter()
