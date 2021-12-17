@@ -150,8 +150,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
 
     let data = match env::from_env() {
-        Ok(data) => { data },
-        Err(err) => { panic!("Failed to load env var. Did you export .env?: {}", err) },
+        Ok(data) => data,
+        Err(err) => {
+            panic!("Failed to load env var. Did you export .env?: {}", err)
+        }
     };
     let mastodon = Mastodon::from(data);
 
@@ -353,7 +355,7 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
     }
 }
 
-fn mark_favorite(status: &elefren::entities::status::Status, mastodon: elefren::Mastodon) -> () {
+fn mark_favorite(status: &elefren::entities::status::Status, mastodon: elefren::Mastodon) {
     let id = &status.id;
 
     match mastodon.favourite(id) {
@@ -362,10 +364,7 @@ fn mark_favorite(status: &elefren::entities::status::Status, mastodon: elefren::
     };
 }
 
-fn reply_understood(
-    in_reply_to: &elefren::entities::status::Status,
-    mastodon: elefren::Mastodon,
-) -> () {
+fn reply_understood(in_reply_to: &elefren::entities::status::Status, mastodon: elefren::Mastodon) {
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
@@ -383,7 +382,7 @@ fn reply_understood(
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
-) -> () {
+) {
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
@@ -404,7 +403,7 @@ fn reply_dont_understand(
 #[cfg(test)]
 mod tests {
     // Don't forget to add assert_ne when used. For pretty output.
-    use pretty_assertions::{assert_eq};
+    use pretty_assertions::assert_eq;
 
     use std::fs::File;
     use std::io::BufReader;
