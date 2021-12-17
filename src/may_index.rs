@@ -17,7 +17,7 @@ fn fetch(url: &str) -> String {
     body
 }
 
-fn determine_meta_robots(html: &String) -> bool {
+fn determine_meta_robots(html: &str) -> bool {
     let fragment = Html::parse_fragment(html);
     let selector = Selector::parse(r#"meta[name="robots"]"#).unwrap();
 

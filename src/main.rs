@@ -234,13 +234,13 @@ fn has_job_related_tags(tags: &Vec<elefren::entities::status::Tag>) -> bool {
             .any(|e| job_tags().contains(&e))
 }
 
-fn has_indexme_request(content: &String) -> bool {
+fn has_indexme_request(content: &str) -> bool {
     // Matches "... index me ...", "indexme" etc.
     // But not "index like me" or "reindex meebo"
     lazy_static! {
         static ref RE: Regex = Regex::new("\\Windex\\s?me\\W").unwrap();
     };
-    RE.is_match(content.as_str())
+    RE.is_match(content)
 }
 
 fn print_usage(program: &str, opts: Options) {
@@ -327,7 +327,7 @@ fn handle_messages(
     })
 }
 
-fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Error> {
+fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error> {
     // TODO: handle errors!
     let res = webfinger::resolve(format!("acct:{}", acct), true).unwrap();
     let profile_link = res
