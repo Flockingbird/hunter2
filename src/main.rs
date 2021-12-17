@@ -7,7 +7,7 @@ use elefren::Language;
 
 use env_logger;
 use getopts::Options;
-use log::{debug, info};
+use log::{debug, error, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
 use serde::Serialize;
@@ -19,8 +19,8 @@ use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 #[macro_use]
 extern crate lazy_static;
@@ -134,9 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
-        Err(f) => {
-            std::panic::panic_any(f.to_string())
-        }
+        Err(f) => std::panic::panic_any(f.to_string()),
     };
 
     // print help when requested
@@ -153,7 +151,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let output = Output::new(matches.opt_str("o"), matches.opt_present("m"));
     env_logger::init();
 
-    let data = env::from_env().unwrap();
+    let data = match env::from_env() {
+        Ok(data) => { data },
+        Err(err) => { panic!("Failed to load env var. Did you export .env?: {}", err) },
+    };
     let mastodon = Mastodon::from(data);
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
@@ -309,14 +310,14 @@ fn handle_messages(
             match received {
                 Message::Vacancy(status) => {
                     output.handle_vacancy(&status);
-                    mark_favorite(&status, mastodon.clone()).unwrap();
+                    mark_favorite(&status, mastodon.clone());
                 }
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
                 Message::ReplyUnderstood(status) => {
-                    reply_understood(&status, mastodon.clone()).unwrap();
+                    reply_understood(&status, mastodon.clone());
                 }
                 Message::ReplyDontUnderstand(status) => {
-                    reply_dont_understand(&status, mastodon.clone()).unwrap();
+                    reply_dont_understand(&status, mastodon.clone());
                 }
                 Message::Generic(msg) => info!("{}", msg),
                 Message::Term => {
@@ -357,20 +358,19 @@ fn fetch_rich_account(acct: &String) -> Result<candidate::Account, core::fmt::Er
     }
 }
 
-fn mark_favorite(
-    status: &elefren::entities::status::Status,
-    mastodon: elefren::Mastodon,
-) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+fn mark_favorite(status: &elefren::entities::status::Status, mastodon: elefren::Mastodon) -> () {
     let id = &status.id;
 
-    info!("Favorited status '{}'", id);
-    mastodon.favourite(id)
+    match mastodon.favourite(id) {
+        Ok(status) => info!("Favorited status '{}'", status.id),
+        Err(err) => error!("Favoriting failed: {}", err),
+    };
 }
 
 fn reply_understood(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
-) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+) -> () {
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
@@ -379,15 +379,16 @@ fn reply_understood(
         .in_reply_to(id)
         .build().unwrap();
 
-    info!("Replying status with id '{}' with 'understood'", id);
-    mastodon.new_status(reply)
-
+    match mastodon.new_status(reply) {
+        Ok(status) => info!("Replying status with id '{}' with 'understood'", status.id),
+        Err(err) => error!("Replying to {} failed: {}", id, err),
+    };
 }
 
 fn reply_dont_understand(
     in_reply_to: &elefren::entities::status::Status,
     mastodon: elefren::Mastodon,
-) -> std::result::Result<elefren::entities::status::Status, elefren::Error> {
+) -> () {
     let id = &in_reply_to.id;
 
     let reply = StatusBuilder::new()
@@ -396,8 +397,13 @@ fn reply_dont_understand(
         .in_reply_to(id)
         .build().unwrap();
 
-    info!("Replying status with id '{}' with 'dont understand'", id);
-    mastodon.new_status(reply)
+    match mastodon.new_status(reply) {
+        Ok(status) => info!(
+            "Replying status with id '{}' with 'dont understand'",
+            status.id
+        ),
+        Err(err) => error!("Replying to {} failed: {}", id, err),
+    };
 }
 
 #[cfg(test)]
