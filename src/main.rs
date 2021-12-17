@@ -403,7 +403,8 @@ fn reply_dont_understand(
 
 #[cfg(test)]
 mod tests {
-    use pretty_assertions::{assert_eq, assert_ne};
+    // Don't forget to add assert_ne when used. For pretty output.
+    use pretty_assertions::{assert_eq};
 
     use std::fs::File;
     use std::io::BufReader;
