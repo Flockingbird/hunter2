@@ -61,8 +61,8 @@ impl Output {
         };
 
         Output {
-            file_name: file_name,
-            meilisearch: meilisearch,
+            file_name,
+            meilisearch,
         }
     }
 

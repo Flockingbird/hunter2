@@ -146,7 +146,7 @@ impl Attachment {
 
                 Attachment {
                     id: a.id,
-                    media_type: media_type,
+                    media_type,
                     url: a.url,
                     remote_url: a.remote_url,
                     preview_url: a.preview_url,
