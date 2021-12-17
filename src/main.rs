@@ -5,13 +5,11 @@ use elefren::helpers::env;
 use elefren::prelude::*;
 use elefren::Language;
 
-use env_logger;
 use getopts::Options;
 use log::{debug, error, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
 use serde::Serialize;
-use serde_json;
 use uuid::Uuid;
 
 use core::fmt::Debug;
