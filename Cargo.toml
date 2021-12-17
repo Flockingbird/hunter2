@@ -23,3 +23,6 @@ uuid = { version = "0.8", features = ["v5"] }
 webfinger = "0.5"
 scraper = ""
 error-chain = ""
+
+[dev-dependencies]
+pretty_assertions = "1.0.0"

@@ -408,6 +408,8 @@ fn reply_dont_understand(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::{assert_eq, assert_ne};
+
     use std::fs::File;
     use std::io::BufReader;
     use std::path::Path;
