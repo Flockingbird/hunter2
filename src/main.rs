@@ -203,14 +203,11 @@ fn register() -> Result<Mastodon, Box<dyn Error>> {
 
     // Print the ENV var to screen for copying into whatever we use (.env)
     println!("Save these env vars in e.g. .env\n");
-    println!("export {}=\"{}\"", "BASE", &mastodon.data.base);
-    println!("export {}=\"{}\"", "CLIENT_ID", &mastodon.data.client_id);
-    println!(
-        "export {}=\"{}\"",
-        "CLIENT_SECRET", &mastodon.data.client_secret
-    );
-    println!("export {}=\"{}\"", "REDIRECT", &mastodon.data.redirect);
-    println!("export {}=\"{}\"\n", "TOKEN", &mastodon.data.token);
+    println!("export BASE=\"{}\"", &mastodon.data.base);
+    println!("export CLIENT_ID=\"{}\"", &mastodon.data.client_id);
+    println!("export CLIENT_SECRET=\"{}\"", &mastodon.data.client_secret);
+    println!("export REDIRECT=\"{}\"", &mastodon.data.redirect);
+    println!("export TOKEN=\"{}\"\n", &mastodon.data.token);
 
     Ok(mastodon)
 }
