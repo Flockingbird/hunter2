@@ -83,10 +83,7 @@ impl Status {
             created_at_ts: owned_status.created_at.timestamp_millis(),
             media_attachments: Attachment::from(owned_status.media_attachments),
             tags: Tag::from(owned_status.tags),
-            card: match owned_status.card {
-                Some(card) => Some(Card::from(card)),
-                None => None,
-            },
+            card: owned_status.card.map(Card::from),
             language: owned_status.language,
         }
     }
