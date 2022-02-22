@@ -307,7 +307,6 @@ fn handle_messages(
             match received {
                 Message::Vacancy(status) => {
                     output.handle_vacancy(&status);
-                    mark_favorite(&status, mastodon.clone());
                 }
                 Message::IndexMe(status) => output.handle_indexme(&status.account),
                 Message::ReplyUnderstood(status) => {
@@ -353,15 +352,6 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
     } else {
         Err(std::fmt::Error)
     }
-}
-
-fn mark_favorite(status: &elefren::entities::status::Status, mastodon: elefren::Mastodon) {
-    let id = &status.id;
-
-    match mastodon.favourite(id) {
-        Ok(status) => info!("Favorited status '{}'", status.id),
-        Err(err) => error!("Favoriting failed: {}", err),
-    };
 }
 
 fn reply_understood(in_reply_to: &elefren::entities::status::Status, mastodon: elefren::Mastodon) {
