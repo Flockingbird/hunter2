@@ -35,7 +35,7 @@ impl IntoMeili for Account {
         let client = Client::new(uri.as_str(), key.as_str());
         let document = self.clone();
         block_on(async move {
-            let index = client.get_or_create("candidates").await.unwrap();
+            let index = client.index("candidates");
             index.add_documents(&[document], Some("id")).await.unwrap();
         });
     }
