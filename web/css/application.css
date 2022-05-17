@@ -1,0 +1,96 @@
+.is-vertical-center {
+  display: flex;
+  align-items: center;
+}
+
+.is-horizontal-center {
+  justify-content: center;
+}
+
+.is-logo h1 {
+  display: none;
+}
+
+.hero .tabs a {
+  border-bottom-color: #f74430;
+  border-bottom-style: solid;
+  border-bottom-width: 20px;
+
+  color: #ffbab2;
+}
+
+.hero .tabs li.is-active a {
+  border-bottom-color: white;
+  color: white;
+}
+
+.hero .is-brand-bg {
+  background-color: #f74430;
+  color: white;
+}
+
+.is-brand-bg * {
+  color: white;
+}
+.is-brand-bg input {
+  color: #363636;
+}
+
+.is-brand-color {
+  color: #f74430;
+}
+.is-brand-color span.icon * {
+  color: #f74430;
+}
+button.is-brand-color {
+  border-color: #fff;
+}
+
+.is-brand-shadowed {
+  box-shadow: 18px 24px 0 0 #e1402b;
+  border-radius: 0;
+  border: 1px solid #e1402b;
+}
+
+.media .is-brand-shadowed {
+  box-shadow: 13px 13px 0 0 #ffbab2;
+  margin-right: 13px;
+}
+
+.image.is-brand-shadowed {
+  border: none;
+}
+
+.media + .media {
+  border: none;
+}
+
+.media:hover {
+  background-color: #e1402b;
+  color: white;
+}
+
+.media:hover strong {
+  color: white;
+}
+
+.media:hover .is-brand-shadowed {
+  box-shadow: 13px 13px 0 0 #f74430;
+  margin-right: 13px;
+}
+.media .content a,
+.media:hover .content .is-light a {
+  color: rgb(74, 74, 74);
+}
+.media:hover .content a {
+  color: white;
+}
+.media .content a:hover {
+  text-decoration: underline;
+}
+
+.full-url {
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}

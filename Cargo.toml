@@ -1,0 +1,28 @@
+[package]
+name = "hunter2"
+version = "0.1.0"
+authors = ["Bèr Kessels <ber@berk.es>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+env_logger = "0.8"
+elefren = { version = "0.22", features = ["env"] }
+futures = "0.3" # For meilisearch_sdk to access async features
+getopts = "0.2"
+chrono = "0.4"
+lazy_static ="1"
+log = "0.4"
+meilisearch-sdk = "0.15.0"
+regex = "1"
+reqwest = "0.9" # Version should be compat with the one webfinger uses.
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "0.8", features = ["v5"] }
+webfinger = "0.5"
+scraper = "0.12.0"
+error-chain = "0.12.4"
+
+[dev-dependencies]
+pretty_assertions = "1.0.0"
