@@ -24,5 +24,7 @@ webfinger = "0.5"
 scraper = "0.12.0"
 error-chain = "0.12.4"
 
+openssl = { version = "0.10", features = ["vendored"] }
+
 [dev-dependencies]
 pretty_assertions = "1.0.0"
