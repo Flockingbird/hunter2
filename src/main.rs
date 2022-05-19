@@ -10,7 +10,6 @@ use log::{debug, error, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
 use serde::Serialize;
-use uuid::Uuid;
 
 use core::fmt::Debug;
 use std::error::Error;
@@ -336,19 +335,13 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
         .unwrap();
 
     if let Some(href) = profile_link.href {
-        let mut account = Client::new()
+        let account = Client::new()
             .get(&href)
             .header(ACCEPT, profile_link.mime_type.unwrap())
             .send()
             .unwrap()
             .json::<candidate::Account>()
             .unwrap();
-
-        // TODO: Investigate why this is broken. Maybe "as_bytes()" returns the same bytes?
-        // Because it currently always returns 1b4db7eb-4057-5ddf-91e0-36dec72071f5 as UUID.
-        let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
-        account.ap_id = account.id;
-        account.id = uuid.to_hyphenated().to_string();
 
         Ok(account)
     } else {
@@ -484,10 +477,7 @@ mod tests {
         let reader = BufReader::new(file);
         let actual_account = fetch_rich_account(&acct).unwrap();
 
-        let mut expected_account: candidate::Account = serde_json::from_reader(reader)?;
-        expected_account.ap_id = expected_account.id;
-        expected_account.id = actual_account.id.clone();
-
+        let expected_account: candidate::Account = serde_json::from_reader(reader)?;
         assert_eq!(actual_account, expected_account);
         Ok(())
     }
