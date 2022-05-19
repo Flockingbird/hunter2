@@ -356,9 +356,10 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
 
 fn reply_understood(in_reply_to: &elefren::entities::status::Status, mastodon: elefren::Mastodon) {
     let id = &in_reply_to.id;
+    let username = in_reply_to.account.username.to_string();
 
     let reply = StatusBuilder::new()
-        .status(format!("Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. - {}", CONTACT_HUMAN_MSG))
+        .status(format!("Nice one {}, Your account is being indexed and should show up when you search on https://search.flockingbird.social/candidates/ in a few minutes. Good luck with your jobunt. - {}", username, CONTACT_HUMAN_MSG))
         .language(Language::Eng)
         .in_reply_to(id)
         .build().unwrap();
