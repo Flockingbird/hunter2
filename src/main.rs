@@ -18,6 +18,8 @@ use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
 
 #[macro_use]
 extern crate lazy_static;
@@ -335,13 +337,19 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
         .unwrap();
 
     if let Some(href) = profile_link.href {
-        let account = Client::new()
+        let mut account = Client::new()
             .get(&href)
             .header(ACCEPT, profile_link.mime_type.unwrap())
             .send()
             .unwrap()
             .json::<candidate::Account>()
             .unwrap();
+
+        let mut hasher = Sha1::new();
+        hasher.input_str(&account.id);
+
+        account.ap_id = account.id;
+        account.id =  hasher.result_str();
 
         Ok(account)
     } else {
@@ -472,13 +480,38 @@ mod tests {
     #[test]
     fn test_fetch_rich_account_returns_account() -> Result<(), std::io::Error> {
         let acct = String::from("testing_hunter2@mastodon.online");
-        let path = Path::new("./test/fixtures/hunter2_ap.json");
-        let file = File::open(&path)?;
-        let reader = BufReader::new(file);
         let actual_account = fetch_rich_account(&acct).unwrap();
 
-        let expected_account: candidate::Account = serde_json::from_reader(reader)?;
+        let mut expected_account: candidate::Account = serde_json::from_reader(fixture("hunter2_ap"))?;
+        expected_account.ap_id = expected_account.id;
+        expected_account.id = actual_account.id.clone();
+
         assert_eq!(actual_account, expected_account);
         Ok(())
+    }
+
+    #[test]
+    fn test_fetch_rich_account_creates_unique_id() -> Result<(), std::io::Error> {
+        let acct_hunter2 = String::from("testing_hunter2@mastodon.online");
+        let hunter2 = fetch_rich_account(&acct_hunter2).unwrap();
+
+        let acct_flockingbird = String::from("flockingbird@fosstodon.org");
+        let flockingbird = fetch_rich_account(&acct_flockingbird).unwrap();
+
+        dbg!(flockingbird.clone());
+        dbg!(hunter2.clone());
+
+        assert_ne!(flockingbird.id, hunter2.id);
+        Ok(())
+    }
+
+    fn fixture(name: &str) -> BufReader<File> {
+        let file = {
+          let path_str = format!("./test/fixtures/{}.json", &name);
+          let path = Path::new(&path_str);
+          File::open(&path).unwrap()
+        };
+
+        BufReader::new(file)
     }
 }

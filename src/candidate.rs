@@ -36,7 +36,7 @@ impl IntoMeili for Account {
         let document = self.clone();
         block_on(async move {
             let index = client.index("candidates");
-            index.add_documents(&[document], Some("ap_id")).await.unwrap();
+            index.add_documents(&[document], Some("id")).await.unwrap();
         });
     }
 }
