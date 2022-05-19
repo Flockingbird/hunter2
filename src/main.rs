@@ -344,6 +344,8 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
             .json::<candidate::Account>()
             .unwrap();
 
+        // TODO: Investigate why this is broken. Maybe "as_bytes()" returns the same bytes?
+        // Because it currently always returns 1b4db7eb-4057-5ddf-91e0-36dec72071f5 as UUID.
         let uuid = Uuid::new_v5(&Uuid::NAMESPACE_URL, &account.ap_id.as_bytes());
         account.ap_id = account.id;
         account.id = uuid.to_hyphenated().to_string();
