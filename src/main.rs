@@ -12,14 +12,14 @@ use reqwest::{header::ACCEPT, Client};
 use serde::Serialize;
 
 use core::fmt::Debug;
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
 
 #[macro_use]
 extern crate lazy_static;
@@ -27,9 +27,9 @@ extern crate lazy_static;
 mod meili;
 use meili::IntoMeili;
 mod candidate;
+mod job_tags;
 mod may_index;
 mod vacancy;
-mod job_tags;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -343,7 +343,7 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
         hasher.input_str(&account.id);
 
         account.ap_id = account.id;
-        account.id =  hasher.result_str();
+        account.id = hasher.result_str();
 
         Ok(account)
     } else {
@@ -476,7 +476,8 @@ mod tests {
         let acct = String::from("testing_hunter2@mastodon.online");
         let actual_account = fetch_rich_account(&acct).unwrap();
 
-        let mut expected_account: candidate::Account = serde_json::from_reader(fixture("hunter2_ap"))?;
+        let mut expected_account: candidate::Account =
+            serde_json::from_reader(fixture("hunter2_ap"))?;
         expected_account.ap_id = expected_account.id;
         expected_account.id = actual_account.id.clone();
 
@@ -501,9 +502,9 @@ mod tests {
 
     fn fixture(name: &str) -> BufReader<File> {
         let file = {
-          let path_str = format!("./test/fixtures/{}.json", &name);
-          let path = Path::new(&path_str);
-          File::open(&path).unwrap()
+            let path_str = format!("./test/fixtures/{}.json", &name);
+            let path = Path::new(&path_str);
+            File::open(&path).unwrap()
         };
 
         BufReader::new(file)
