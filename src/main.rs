@@ -29,6 +29,7 @@ use meili::IntoMeili;
 mod candidate;
 mod may_index;
 mod vacancy;
+mod job_tags;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -163,7 +164,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     if matches.opt_present("p") {
         // TODO: This method will return duplicates. So we should deduplicate
-        for tag in job_tags() {
+        for tag in job_tags::tags(&std::env::var("TAG_FILE").unwrap()) {
             for status in mastodon.get_tagged_timeline(tag, false)? {
                 if has_job_related_tags(&status.tags) {
                     tx.send(Message::Vacancy(status)).unwrap();
@@ -220,26 +221,12 @@ fn register() -> Result<Mastodon, Box<dyn Error>> {
     Ok(mastodon)
 }
 
-fn job_tags() -> Vec<String> {
-    vec![
-        "job".to_string(),
-        "jobs".to_string(),
-        "jobsearch".to_string(),
-        "joboffer".to_string(),
-        "hiring".to_string(),
-        "vacancy".to_string(),
-        "offredemploi".to_string(),
-        "emploi".to_string(),
-        "jobangebot".to_string(),
-    ]
-}
-
 fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {
     !tags.is_empty()
         && tags
             .iter()
             .map(|t| t.name.to_owned())
-            .any(|e| job_tags().contains(&e))
+            .any(|e| job_tags::tags(&std::env::var("TAG_FILE").unwrap()).contains(&e))
 }
 
 fn has_indexme_request(content: &str) -> bool {
