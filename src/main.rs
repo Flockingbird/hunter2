@@ -170,6 +170,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
         }
+        for notification in mastodon.notifications()?.items_iter() {
+            if let Some(status) = notification.status {
+                if has_indexme_request(&status.content) {
+                    tx.send(Message::IndexMe(status)).unwrap();
+                }
+            }
+        }
     }
 
     if matches.opt_present("f") {
