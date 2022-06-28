@@ -11,3 +11,35 @@ internal plumbing omitted).
 ![Plantuml Sequence Diagram](/doc/sequence_diagram.png)
 
 
+## Storage for search in Meilisearch.
+
+Meilisearch is an indexed search engine, similar to Elasticsearch. But much
+simpler to host and set-up.
+
+TODO: write about how to set up and deploy meilisearch.
+
+Once deployed, you must tune the database a little. So that we can order by
+date and that date is taken into consideration when searching.
+
+If your meilisearch runs on search.example.com (TODO: explain authentication for production version)
+```
+curl \
+  -X POST 'http://search.example.com/indexes/vacancies/settings/ranking-rules' \
+  -H 'Content-Type: application/json' \
+  --data-binary '[
+    "words",
+    "typo",
+    "proximity",
+    "attribute",
+    "sort",
+    "exactness",
+    "created_at_ts:desc",
+    "rank:desc"
+  ]
+
+curl \
+  -X POST 'http://search.example.com/indexes/vacancies/settings/sortable-attributes' \
+  -H 'Content-Type: application/json' \
+  --data-binary '["created_at_ts"]'
+```
+This modifies the ranking and adds a sortable attribute.

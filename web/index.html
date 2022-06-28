@@ -32,7 +32,21 @@
           event.preventDefault();
           handleSearchField(index);
         });
+
+        prefillDefault(index);
       });
+
+      const prefillDefault = function(index) {
+        const defaultAmount = 10;
+        const defaultSort = 'created_at_ts:desc';
+        const container = document.getElementById('results');
+
+        index.search(null, { limit: defaultAmount, sort: [defaultSort] })
+          .then(function(result) {
+            setHeading('Latest job openings on the fediverse.', container);
+            insertHits(result.hits, container);
+          });
+      };
 
       const handleSearchField = function(index) {
         const searchField = document.getElementById('search-field');
@@ -51,6 +65,7 @@
             limit: limit
           }
         ).then(function(result) {
+          setHeading(`Job openings for ${query}`, container);
           insertHits(result.hits, container);
           if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
             insertPager(index, query, limit, offset + perPage, container);
@@ -79,6 +94,11 @@
         container.querySelectorAll('article.media').forEach(function(hit) {
           container.removeChild(hit);
         });
+      };
+
+      const setHeading = function(message) {
+        const heading = document.getElementById('heading');
+        heading.innerText = strip(message);
       };
 
       const insertHits = function(hits, container) {
@@ -117,6 +137,12 @@
 
           container.append(clone);
         });
+
+      };
+
+      const strip = function(str) {
+         const doc = new DOMParser().parseFromString(str, 'text/html');
+         return doc.body.textContent || '';
       };
    </script>
   </head>
@@ -168,6 +194,7 @@
           <div class="column is-2">
           </div>
           <div id="results" class="column is-5">
+            <h2 id="heading" class="title"/>
           </div>
           <div class="column is-3">
             <section class="card is-brand-shadowed">
