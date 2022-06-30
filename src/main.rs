@@ -1,5 +1,6 @@
-use elefren::entities::event::Event;
+use crate::candidate::Candidate;
 
+use elefren::entities::event::Event;
 use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
@@ -9,14 +10,11 @@ use getopts::Options;
 use log::{debug, error, info};
 use regex::Regex;
 use reqwest::{header::ACCEPT, Client};
-use serde::Serialize;
 
 use core::fmt::Debug;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::error::Error;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -24,12 +22,15 @@ use std::time::Duration;
 #[macro_use]
 extern crate lazy_static;
 
-mod meili;
-use meili::IntoMeili;
 mod candidate;
 mod job_tags;
 mod may_index;
+mod output;
 mod vacancy;
+
+use output::Output;
+
+use crate::may_index::may_index;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -46,79 +47,6 @@ enum Message {
     ReplyUnderstood(elefren::entities::status::Status),
     ReplyDontUnderstand(elefren::entities::status::Status),
     Term,
-}
-
-#[derive(Clone)]
-struct Output {
-    file_name: Option<String>,
-    meilisearch: bool,
-}
-impl Output {
-    fn new(file_name: Option<String>, meilisearch: bool) -> Output {
-        match &file_name {
-            Some(file_name) => {
-                File::create(file_name).unwrap();
-            }
-            None => {}
-        };
-
-        Output {
-            file_name,
-            meilisearch,
-        }
-    }
-
-    fn handle_vacancy(&self, status: &elefren::entities::status::Status) {
-        let vacancy = vacancy::Status::from(status);
-        debug!("Handling vacancy: {:#?}", vacancy);
-        if may_index::may_index(&vacancy.account.url) {
-            self.write_into_file(&vacancy);
-            self.write_into_meili(vacancy);
-        }
-    }
-    fn handle_indexme(&self, account: &elefren::entities::account::Account) {
-        debug!("Handling indexme: {:#?}", account);
-        // Indexme is always indexed, regardless of users' indexing preferences.
-        if let Ok(rich_account) = fetch_rich_account(&account.acct) {
-            debug!("Fetched rich account: {:#?}", rich_account);
-            self.write_into_file(&rich_account);
-            self.write_into_meili(rich_account);
-        }
-    }
-    fn write_into_file<T>(&self, status: T)
-    where
-        T: Serialize,
-        T: Debug,
-        T: std::fmt::Display,
-    {
-        match &self.file_name {
-            Some(file_name) => {
-                debug!("Writing to {}: {:#?}", file_name, status);
-                info!("Writing to {}: {}", file_name, status);
-                let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
-                let json = serde_json::to_string(&status).unwrap();
-                file.write_all(json.as_bytes()).unwrap();
-            }
-            None => {}
-        }
-    }
-
-    fn write_into_meili<T>(&self, document: T)
-    where
-        T: IntoMeili,
-        T: Clone,
-        T: Debug,
-        T: std::fmt::Display,
-    {
-        if self.meilisearch {
-            let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-            let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-            let owned_doc = document;
-            debug!("Writing to Meili {}: {:#?}", uri, owned_doc);
-            info!("Writing to Meili {}: {}", uri, owned_doc);
-            owned_doc.write_into_meili(uri, key);
-        }
-    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -301,9 +229,18 @@ fn handle_messages(
             info!("Handling: {:#?}", received);
             match received {
                 Message::Vacancy(status) => {
-                    output.handle_vacancy(&status);
+                    if may_index(&status.account.url) {
+                        debug!("Handling vacancy: {:#?}", status);
+                        output.handle_vacancy(status.into());
+                    }
                 }
-                Message::IndexMe(status) => output.handle_indexme(&status.account),
+                Message::IndexMe(status) => {
+                    debug!("Handling indexme: {:#?}", status);
+                    if let Ok(rich_account) = fetch_rich_account(&status.account.acct) {
+                        debug!("Fetched rich account: {:#?}", rich_account);
+                        output.handle_indexme(rich_account);
+                    }
+                }
                 Message::ReplyUnderstood(status) => {
                     reply_understood(&status, mastodon.clone());
                 }
@@ -321,7 +258,7 @@ fn handle_messages(
     })
 }
 
-fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error> {
+fn fetch_rich_account(acct: &str) -> Result<Candidate, core::fmt::Error> {
     // TODO: handle errors!
     let res = webfinger::resolve(format!("acct:{}", acct), true).unwrap();
     let profile_link = res
@@ -336,7 +273,7 @@ fn fetch_rich_account(acct: &str) -> Result<candidate::Account, core::fmt::Error
             .header(ACCEPT, profile_link.mime_type.unwrap())
             .send()
             .unwrap()
-            .json::<candidate::Account>()
+            .json::<Candidate>()
             .unwrap();
 
         let mut hasher = Sha1::new();
@@ -476,8 +413,7 @@ mod tests {
         let acct = String::from("testing_hunter2@mastodon.online");
         let actual_account = fetch_rich_account(&acct).unwrap();
 
-        let mut expected_account: candidate::Account =
-            serde_json::from_reader(fixture("hunter2_ap"))?;
+        let mut expected_account: Candidate = serde_json::from_reader(fixture("hunter2_ap"))?;
         expected_account.ap_id = expected_account.id;
         expected_account.id = actual_account.id.clone();
 

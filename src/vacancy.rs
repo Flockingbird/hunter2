@@ -1,16 +1,9 @@
 use chrono::prelude::*;
-use futures::executor::block_on;
+use elefren::entities::*;
 use serde::{Deserialize, Serialize};
 
-use elefren::entities::*;
-
-use meilisearch_sdk::client::*;
-use meilisearch_sdk::document::*;
-
-use crate::meili::IntoMeili;
-
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct Status {
+pub struct Vacancy {
     pub id: String,
     pub uri: String,
     pub url: Option<String>,
@@ -70,47 +63,21 @@ pub struct Card {
     image: Option<String>,
 }
 
-impl Status {
-    pub fn from(status: &status::Status) -> Self {
-        let owned_status = status.to_owned();
-        Status {
-            id: owned_status.id,
-            uri: owned_status.uri,
-            url: owned_status.url,
-            account: Account::from(&owned_status.account),
-            content: owned_status.content,
-            created_at: owned_status.created_at,
-            created_at_ts: owned_status.created_at.timestamp_millis(),
-            media_attachments: Attachment::from(owned_status.media_attachments),
-            tags: Tag::from(owned_status.tags),
-            card: owned_status.card.map(Card::from),
-            language: owned_status.language,
+impl From<status::Status> for Vacancy {
+    fn from(status: status::Status) -> Self {
+        Vacancy {
+            id: status.id,
+            uri: status.uri,
+            url: status.url,
+            account: Account::from(&status.account),
+            content: status.content,
+            created_at: status.created_at,
+            created_at_ts: status.created_at.timestamp_millis(),
+            media_attachments: Attachment::from(status.media_attachments),
+            tags: Tag::from(status.tags),
+            card: status.card.map(Card::from),
+            language: status.language,
         }
-    }
-}
-
-impl Document for Status {
-    type UIDType = String;
-
-    fn get_uid(&self) -> &Self::UIDType {
-        &self.id
-    }
-}
-
-impl IntoMeili for Status {
-    fn write_into_meili(&self, uri: String, key: String) {
-        let client = Client::new(uri.as_str(), key.as_str());
-        let document = self.clone();
-        block_on(async move {
-            let index = client.index("vacancies");
-            index.add_documents(&[document], Some("id")).await.unwrap();
-        });
-    }
-}
-
-impl std::fmt::Display for Status {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<Status id=\"{}\" uri=\"{}\">", self.id, self.uri)
     }
 }
 
