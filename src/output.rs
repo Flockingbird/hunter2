@@ -1,6 +1,5 @@
 mod meili;
 
-use crate::candidate::Candidate;
 use crate::vacancy::Vacancy;
 use meili::IntoMeili;
 
@@ -39,11 +38,6 @@ impl Output {
     pub(crate) fn handle_vacancy(&self, vacancy: Vacancy) {
         self.write_into_file(&vacancy);
         self.write_into_meili(&vacancy);
-    }
-
-    pub(crate) fn handle_indexme(&self, account: Candidate) {
-        self.write_into_file(&account);
-        self.write_into_meili(&account);
     }
 
     fn write_into_file<T>(&self, status: &T)
@@ -92,35 +86,6 @@ impl Document for Vacancy {
 impl std::fmt::Display for Vacancy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "<Status id=\"{}\" uri=\"{}\">", self.id, self.uri)
-    }
-}
-
-impl Document for Candidate {
-    type UIDType = String;
-
-    fn get_uid(&self) -> &Self::UIDType {
-        &self.id
-    }
-}
-
-impl std::fmt::Display for Candidate {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "<Candidate id=\"{}\" username=\"{}\" url=\"{}\">",
-            self.id, self.username, self.url
-        )
-    }
-}
-
-impl IntoMeili for Candidate {
-    fn write_into_meili(&self, uri: String, key: String) {
-        let client = Client::new(uri.as_str(), key.as_str());
-        let document = self.clone();
-        block_on(async move {
-            let index = client.index("candidates");
-            index.add_documents(&[document], Some("id")).await.unwrap();
-        });
     }
 }
 
