@@ -3,7 +3,6 @@ use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
 
-use getopts::Options;
 use log::{debug, info};
 
 use core::fmt::Debug;
@@ -12,11 +11,13 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
+mod cli_options;
 mod job_tags;
 mod may_index;
 mod output;
 mod vacancy;
 
+use cli_options::CliOptions;
 use output::Output;
 
 use crate::may_index::may_index;
@@ -34,33 +35,20 @@ enum Message {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    let program = args[0].clone();
-    let mut opts = Options::new();
-    opts.optflag("h", "help", "print this help menu");
-    opts.optflag("r", "register", "register hunter2 with your instance.");
-    opts.optflag("f", "follow", "follow live updates.");
-    opts.optflag("p", "past", "fetch past updates.");
-    opts.optopt("o", "out", "output to filename as JSONL", "FILE");
-    opts.optflag("m", "meili", "output to meilisearch");
-
-    let matches = match opts.parse(&args[1..]) {
-        Ok(m) => m,
-        Err(f) => std::panic::panic_any(f.to_string()),
-    };
+    let cli_opts = CliOptions::new();
 
     // print help when requested
-    if matches.opt_present("h") {
-        print_usage(&program, opts);
+    if cli_opts.help {
+        cli_opts.print_usage();
         return Ok(());
     }
 
-    if matches.opt_present("r") {
+    if cli_opts.register {
         register()?;
         return Ok(());
     }
 
-    let output = Output::new(matches.opt_str("o"), matches.opt_present("m"));
+    let output = Output::new(cli_opts.file_name, cli_opts.meilisearch);
     env_logger::init();
 
     let data = match env::from_env() {
@@ -74,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
     let messages_thread = handle_messages(rx, output);
 
-    if matches.opt_present("p") {
+    if cli_opts.past {
         // TODO: This method will return duplicates. So we should deduplicate
         for tag in job_tags::tags(&std::env::var("TAG_FILE").unwrap()) {
             for status in mastodon.get_tagged_timeline(tag, false)? {
@@ -85,11 +73,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    if matches.opt_present("f") {
-        tx.send(Message::Generic(String::from(
-            " 📨 Listening for vacancies",
-        )))
-        .unwrap();
+    if cli_opts.follow {
+        tx.send(Message::Generic(String::from("📨 Listening for vacancies")))
+            .unwrap();
         let updates_thread = capture_updates(mastodon, tx);
 
         updates_thread.join().unwrap();
@@ -126,11 +112,6 @@ fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {
             .any(|e| job_tags::tags(&std::env::var("TAG_FILE").unwrap()).contains(&e))
 }
 
-fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} TEMPLATE_FILE [options]", program);
-    print!("{}", opts.usage(&brief));
-}
-
 fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for event in mastodon.streaming_public().unwrap() {
@@ -149,10 +130,7 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
-fn handle_messages(
-    rx: Receiver<Message>,
-    output: Output,
-) -> thread::JoinHandle<()> {
+fn handle_messages(rx: Receiver<Message>, output: Output) -> thread::JoinHandle<()> {
     debug!("opening message handler");
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
