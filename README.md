@@ -40,5 +40,10 @@ curl \
   -X POST 'http://search.example.com/indexes/vacancies/settings/sortable-attributes' \
   -H 'Content-Type: application/json' \
   --data-binary '["created_at_ts"]'
+
+curl \
+  -X POST 'http://search.example.com/indexes/vacancies/settings/filterable-attributes' \
+  -H 'Content-Type: application/json' \
+  --data-binary '["tags", "language"]'
 ```
-This modifies the ranking and adds a sortable attribute.
+This modifies the ranking, adds a sortable attribute and adds the required filters for faceted search etc?
