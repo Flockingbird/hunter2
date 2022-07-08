@@ -12,8 +12,6 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
-extern crate lazy_static;
-
 mod job_tags;
 mod may_index;
 mod output;
