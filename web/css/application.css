@@ -69,6 +69,9 @@ button.is-brand-color {
   background-color: #e1402b;
   color: white;
 }
+.media:hover .is-brand-color {
+  color: white;
+}
 
 .media:hover strong {
   color: white;
@@ -78,6 +81,22 @@ button.is-brand-color {
   box-shadow: 13px 13px 0 0 #f74430;
   margin-right: 13px;
 }
+
+.ellipsis::after {
+  content: "…";
+}
+
+.ellipsis {
+  color: #f74430;
+}
+.media:hover .ellipsis {
+  color: white;
+}
+
+.media .content .invisible {
+  display: none;
+}
+
 .media .content a,
 .media:hover .content .is-light a {
   color: rgb(74, 74, 74);
