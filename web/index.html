@@ -30,69 +30,89 @@
         const searchForm = document.getElementById('search-form');
         searchForm.addEventListener('submit', function(event) {
           event.preventDefault();
-          handleSearchField(index);
+          doSearch().then(handleSearchResponse);
         });
 
-        prefillDefault(index);
+        prefillDefault();
       });
 
-      const prefillDefault = function(index) {
+      const getActiveTags = function() {
+        const activeNodes = document.getElementById('active-tags')
+                                    .querySelectorAll('.list-item');
+        return Array.from(activeNodes).map((li) => li.dataset.tagName)
+      };
+
+      const prefillDefault = function() {
         const defaultAmount = 10;
         const defaultSort = 'created_at_ts:desc';
-        const container = document.getElementById('results');
 
         index.search(null, { limit: defaultAmount, sort: [defaultSort] })
           .then(function(result) {
-            setHeading('Latest job openings on the fediverse.', container);
-            insertHits(result.hits, container);
+            setHeading('Latest job openings on the fediverse.');
+            insertHits(result.hits);
           });
       };
 
-      const handleSearchField = function(index) {
-        const searchField = document.getElementById('search-field');
-        const container = document.getElementById('results');
-        const query = searchField.value;
-        removeHits(container);
-        doSearch(index, query, perPage, 0, container);
-      };
+      const handleNextPage = function(result, offset) {
+        removePager();
 
-      const doSearch = function(index, query, limit, offset, container) {
-        removePager(container);
-        index.search(
-          query,
-          {
-            offset: offset,
-            limit: limit
-          }
-        ).then(function(result) {
-          setHeading(`Job openings for ${query}`, container);
-          insertHits(result.hits, container);
-          if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
-            insertPager(index, query, limit, offset + perPage, container);
-          }
-        });
+        insertHits(result.hits)
+
+        if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
+          insertPager(offset + perPage);
+        }
       }
 
-      const insertPager = function(index, query, limit, offset, container) {
+      const handleSearchResponse = function(result) {
+          if (result.query) {
+            setHeading(`Job openings for ${result.query}`);
+          }
+
+          if (result.facetsDistribution) {
+            replaceTags(result.facetsDistribution["tags.name"], []);
+          }
+
+          replaceHits(result.hits);
+
+          if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
+            insertPager(0 + perPage);
+          }
+      }
+
+      const doSearch = function(offset = 0) {
+        const query = document.getElementById('search-field').value;
+
+        removePager();
+        var options =  {
+          offset: offset,
+          limit: perPage,
+          facetsDistribution: ['tags.name']
+        }
+
+        const filter = getActiveTags().map((tagName) => `tags.name = "${tagName}"`);
+        if (filter.length > 0) {
+          options.filter = filter;
+        }
+
+        return index.search(query, options);
+      }
+
+      const insertPager = function(offset) {
         const page_tmpl = document.getElementById('pager');
+        const results_container = document.getElementById('results');
         var clone = page_tmpl.content.cloneNode(true);
 
         clone.firstElementChild.addEventListener('click', function(event) {
           event.preventDefault();
-          doSearch(index, query, limit, offset, container);
+          doSearch(offset).then((result) => handleNextPage(result, offset));
         });
-        container.appendChild(clone);
+        results_container.appendChild(clone);
       };
 
-      const removePager = function(container) {
+      const removePager = function() {
+        const container = document.getElementById('results');
         container.querySelectorAll('.pager').forEach(function(pager) {
           container.removeChild(pager);
-        });
-      };
-
-      const removeHits = function(container) {
-        container.querySelectorAll('article.media').forEach(function(hit) {
-          container.removeChild(hit);
         });
       };
 
@@ -101,9 +121,54 @@
         heading.innerText = strip(message);
       };
 
-      const insertHits = function(hits, container) {
+      const replaceTags = function(filterTags) {
+        document.getElementById('inactive-tags').innerHTML = '';
+        insertTags(filterTags);
+      };
+
+      const insertTags = function(filterTags) {
+        const tag_tmpl = document.getElementById('refine-tag');
+        const tagsContainer = document.getElementById('inactive-tags');
+        const activeTags = getActiveTags();
+
+        var sortedFilterTags = Object.keys(filterTags)
+          .map((key) => { return { "name": key, "count": filterTags[key] }; })
+          .filter((tag) => tag.count > 1)
+          .sort((a, b) => b.count - a.count);
+
+        sortedFilterTags.forEach((tag) => {
+          if (activeTags.includes(tag.name)) { return; }
+
+          var clone = tag_tmpl.content.cloneNode(true);
+          var li = clone.querySelector('li');
+
+          li.dataset.tagName = tag.name;
+          li.querySelector('.name').innerText = tag.name;
+          li.querySelector('.count').innerText = `(${tag.count})`;
+
+          li.querySelector('a').addEventListener('click', handleRefine);
+
+          tagsContainer.appendChild(li);
+        });
+        showTagsBlock();
+      };
+
+      const removeHits = function() {
+        const container = document.getElementById('results');
+        container.querySelectorAll('article.media').forEach(function(hit) {
+          container.removeChild(hit);
+        });
+      };
+
+      const replaceHits = function(hits) {
+         removeHits();
+         insertHits(hits);
+      };
+
+      const insertHits = function(hits) {
         const hit_tmpl = document.getElementById('hit');
         const tag_tmpl = document.getElementById('tag');
+        const results_container = document.getElementById('results');
 
         hits.forEach(function(hit, _index, _array) {
           var clone = hit_tmpl.content.cloneNode(true);
@@ -121,23 +186,32 @@
           });
           clone.querySelector('.full-url a.toot-link span.link').innerText = hit.url;
 
-          tagContainer = clone.querySelector('.tags');
-          hit.tags.forEach(function(tag, _index, _array) {
-            var tagElem = tag_tmpl.content.cloneNode(true);
-            tagElem.querySelector('.tag .name').innerText = tag.name;
-
-            tagElem.firstElementChild.addEventListener('click', function(event) {
-              event.preventDefault();
-              document.getElementById('search-field').value = tag.name;
-              removeHits(container);
-              doSearch(index, tag.name, perPage, 0, container);
-            });
-            tagContainer.appendChild(tagElem);
-          });
-
-          container.append(clone);
+          results_container.append(clone);
         });
+      };
 
+      const handleRefine = function(event) {
+          event.preventDefault();
+          toggleActive(event.currentTarget.parentNode);
+          doSearch().then(handleSearchResponse);
+      }
+
+      const toggleActive = function(element) {
+          const activeTagsContainer = document.getElementById('active-tags');
+          const inactiveTagsContainer = document.getElementById('inactive-tags');
+
+          if (element.classList.contains('is-active')) {
+            element.remove();
+          } else {
+            element.querySelector('.count').innerText = "";
+            activeTagsContainer.appendChild(element);
+          }
+
+          element.classList.toggle('is-active');
+      };
+
+      const showTagsBlock = function() {
+        document.getElementById('tags-container').classList.remove('is-hidden');
       };
 
       const strip = function(str) {
@@ -184,13 +258,23 @@
       </div>
 
       <div class="hero-body px-0">
-        <div class="columns">
+        <div class="columns" id="container">
           <div class="column is-2">
           </div>
           <div id="results" class="column is-5">
             <h2 id="heading" class="title"/>
           </div>
           <div class="column is-3">
+            <section class="mb-6 card is-brand-shadowed is-hidden" id="tags-container">
+              <div class="card-content">
+                <h1 class="title">Refine your search:</h1>
+                <div class="menu">
+                  <ul class="menu-list" id="active-tags"></ul>
+                  <ul class="menu-list" id="inactive-tags"></ul>
+                </div>
+              </div>
+            </section>
+
             <section class="card is-brand-shadowed">
               <div class="card-content">
                 <h1 class="title">Help improve these results!</h1>
@@ -246,7 +330,6 @@
             </a>
             </p>
             <p class="excerpt"></p>
-            <p class="tags">
             </p>
           </div>
         </div>
@@ -258,6 +341,14 @@
         <span class="icon">
           <span class="mdi mdi-magnify"></span>
         </span>
+    </template>
+    <template id="refine-tag">
+      <li class="list-item" data-tag-name>
+        <a class="refine">
+          <span class="name"></span>
+          <span class="count"></span>
+        </a>
+      </li>
     </template>
     <template id="pager">
       <button class="button is-medium is-fullwidth pager">More results</button>

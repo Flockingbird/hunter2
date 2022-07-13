@@ -113,3 +113,10 @@ button.is-brand-color {
   white-space: nowrap;
   overflow: hidden;
 }
+
+.menu-list li.is-active,
+.menu-list li.is-active a,
+.menu-list li.is-active a:hover {
+  background-color: #e1402b;
+  color: white;
+}
