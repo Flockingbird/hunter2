@@ -153,7 +153,8 @@
 
           tagsContainer.appendChild(li);
         });
-        showTagsBlock();
+
+        showTagsBlockIf(filterTags.length > 0);
       };
 
       const extractFacetTags = function(result) {
@@ -236,8 +237,12 @@
           element.classList.toggle('is-active');
       };
 
-      const showTagsBlock = function() {
-        document.getElementById('tags-container').classList.remove('is-hidden');
+      const showTagsBlockIf = function(conditional) {
+        if (conditional) {
+          document.getElementById('tags-container').classList.remove('is-hidden');
+        } else {
+          document.getElementById('tags-container').classList.add('is-hidden');
+        }
       };
 
       const strip = function(str) {
