@@ -31,6 +31,7 @@
         const searchForm = document.getElementById('search-form');
         searchForm.addEventListener('submit', function(event) {
           event.preventDefault();
+          resetTags();
           doSearch().then(handleSearchResponse);
         });
 
@@ -124,6 +125,11 @@
       const setHeading = function(message) {
         const heading = document.getElementById('heading');
         heading.innerText = strip(message);
+      };
+
+      const resetTags = function() {
+        document.getElementById('active-tags').innerHTML = '';
+        document.getElementById('inactive-tags').innerHTML = '';
       };
 
       const replaceTags = function(filterTags) {
