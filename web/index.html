@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/application.css">
     <script src='https://cdn.jsdelivr.net/npm/meilisearch@latest/dist/bundles/meilisearch.umd.js'></script>
     <script charset="utf-8">
+      const ignoredCommonTags = ['job', 'jobs', 'jobsearch', 'joboffer', 'hiring', 'vacancy', 'offredemploi', 'emploi', 'jobangebot', 'fedihire']; 
       const meiliSearchHost = 'https://meili.flockingbird.social';
       const meiliSearchPubApiKey = 'WBHjcemG40873580ee15b9f215f352bcd923fc2fb95bb3a51dc754000f9cf98cd235680e'
       const perPage = 20;
@@ -69,7 +70,11 @@
           }
 
           if (result.facetsDistribution) {
-            replaceTags(result.facetsDistribution["tags.name"], []);
+            const tags = extractFacetTags(result)
+              .filter(notCommonName)
+              .filter(notSpammy)
+              .sort(sortByCount)
+            replaceTags(tags);
           }
 
           replaceHits(result.hits);
@@ -122,21 +127,13 @@
       };
 
       const replaceTags = function(filterTags) {
-        document.getElementById('inactive-tags').innerHTML = '';
-        insertTags(filterTags);
-      };
-
-      const insertTags = function(filterTags) {
         const tag_tmpl = document.getElementById('refine-tag');
         const tagsContainer = document.getElementById('inactive-tags');
         const activeTags = getActiveTags();
 
-        var sortedFilterTags = Object.keys(filterTags)
-          .map((key) => { return { "name": key, "count": filterTags[key] }; })
-          .filter((tag) => tag.count > 1)
-          .sort((a, b) => b.count - a.count);
+        tagsContainer.innerHTML = '';
 
-        sortedFilterTags.forEach((tag) => {
+        filterTags.forEach((tag) => {
           if (activeTags.includes(tag.name)) { return; }
 
           var clone = tag_tmpl.content.cloneNode(true);
@@ -151,6 +148,29 @@
           tagsContainer.appendChild(li);
         });
         showTagsBlock();
+      };
+
+      const extractFacetTags = function(result) {
+        const filterTags = result.facetsDistribution['tags.name'];
+        return Object.keys(filterTags)
+          .map((key) => { return { 'name': key, 'count': filterTags[key] }; })
+      };
+
+      const sortByCount = function(a, b) {
+        return b.count - a.count;
+      };
+
+      const notCommonName = function(nameable) {
+        return !ignoredCommonTags.includes(nameable.name);
+      };
+
+      // If the entire array is short, allow all tags,
+      // otherwise, only return the tags that are used more than once.
+      const notSpammy = function(tagPair, _index, allTags) {
+        const tagLimit = 20;
+        if (allTags.length < tagLimit) { return true; }
+        
+        return (tagPair.count > 1);
       };
 
       const removeHits = function() {
