@@ -8,3 +8,4 @@ offredemploi
 emploi
 jobangebot
 fedihire
+jerecrute
