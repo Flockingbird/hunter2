@@ -3,6 +3,8 @@ WEB_DIR=./web/
 DEPLOY_HOST=cool-arnberger.webschuur.com
 DOCKER_NETWORK=docker-bridge
 DIR := ${CURDIR}
+CURRENT_VERSION=$(shell git tag --list | sort --version-sort --reverse | head -n1 | cut -c2-100)
+NEXT_VERSION=$(shell expr $(CURRENT_VERSION) + 1)
 
 all:
 	cargo build --release
@@ -15,3 +17,6 @@ deploy:
 
 meili:
 	docker run --name hunter2_meili --network $(DOCKER_NETWORK) --publish 7700:7700 --volume $(DIR)/data.ms:/data.ms --rm --detach -d getmeili/meilisearch:latest
+
+release-tag:
+	git tag --sign --annotate "v$(NEXT_VERSION)"
