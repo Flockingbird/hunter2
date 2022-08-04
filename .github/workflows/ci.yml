@@ -36,9 +36,8 @@ jobs:
     - name: Archive Release
       uses: thedoctor0/zip-release@main
       with:
-        type: 'zip'
-        filename: 'web.tar.gz'
         type: 'tar'
+        filename: 'web.tar.gz'
         path: './web'
     - name: Release
       uses: softprops/action-gh-release@v1
