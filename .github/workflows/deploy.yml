@@ -1,0 +1,32 @@
+---
+name: CI
+
+on:
+  release:
+    types: ["published"]
+
+jobs:
+  hunter2:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download binary hunter2
+        uses: charlieegan3/fetch-gh-release-binary@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          owner: Flockingbird
+          repo: hunter2
+          asset-pattern: hunter2
+          install-path: /tmp/hunter2
+          verbose: true
+
+      - name: Upload hunter2
+        uses: burnett01/rsync-deployments@5.2.1
+        with:
+          switches: -avzr --delete
+          path: /tmp/hunter2
+          remote_path: /tmp/hunter2
+          remote_host: cool-arnberger.webschuur.com
+          remote_user: deploy
+          remote_key: ${{ secrets.DEPLOY_KEY }}
