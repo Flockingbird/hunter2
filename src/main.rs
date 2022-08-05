@@ -130,7 +130,11 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
-fn handle_messages(rx: Receiver<Message>, output: Output, client: Mastodon) -> thread::JoinHandle<()> {
+fn handle_messages(
+    rx: Receiver<Message>,
+    output: Output,
+    client: Mastodon,
+) -> thread::JoinHandle<()> {
     debug!("opening message handler");
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
