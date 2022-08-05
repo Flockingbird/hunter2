@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mastodon = Mastodon::from(data);
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
-    let messages_thread = handle_messages(rx, output);
+    let messages_thread = handle_messages(rx, output, mastodon.clone());
 
     if cli_opts.past {
         // TODO: This method will return duplicates. So we should deduplicate
@@ -130,7 +130,7 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
     })
 }
 
-fn handle_messages(rx: Receiver<Message>, output: Output) -> thread::JoinHandle<()> {
+fn handle_messages(rx: Receiver<Message>, output: Output, client: Mastodon) -> thread::JoinHandle<()> {
     debug!("opening message handler");
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
@@ -139,7 +139,8 @@ fn handle_messages(rx: Receiver<Message>, output: Output) -> thread::JoinHandle<
                 Message::Vacancy(status) => {
                     if may_index(&status.account.url) {
                         debug!("Handling vacancy: {:#?}", status);
-                        output.handle_vacancy(status.into());
+                        output.handle_vacancy(&status.clone().into());
+                        client.favourite(&status.id).expect("Favourite failed");
                     }
                 }
                 Message::Generic(msg) => info!("{}", msg),

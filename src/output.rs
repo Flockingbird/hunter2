@@ -35,9 +35,9 @@ impl Output {
         }
     }
 
-    pub(crate) fn handle_vacancy(&self, vacancy: Vacancy) {
-        self.write_into_file(&vacancy);
-        self.write_into_meili(&vacancy);
+    pub(crate) fn handle_vacancy(&self, vacancy: &Vacancy) {
+        self.write_into_file(vacancy);
+        self.write_into_meili(vacancy);
     }
 
     fn write_into_file<T>(&self, status: &T)
