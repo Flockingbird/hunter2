@@ -3,6 +3,7 @@ jobs
 jobsearch
 joboffer
 hiring
+getfedihired
 vacancy
 offredemploi
 emploi
