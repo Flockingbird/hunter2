@@ -162,9 +162,11 @@ fn handle_messages(
 mod tests {
     use super::*;
     use elefren::entities::status::Tag;
+    use std::env::set_var;
 
     #[test]
     fn test_has_job_related_tags_with_jobs_tag() {
+        set_tags_file_env();
         let tags = vec![Tag {
             url: "".to_string(),
             name: "jobs".to_string(),
@@ -174,6 +176,7 @@ mod tests {
 
     #[test]
     fn test_has_job_related_tags_with_multiple_tags() {
+        set_tags_file_env();
         let tags = vec![
             Tag {
                 url: "".to_string(),
@@ -189,16 +192,22 @@ mod tests {
 
     #[test]
     fn test_has_no_job_related_tags_without_tags() {
+        set_tags_file_env();
         let tags = vec![];
         assert!(!has_job_related_tags(&tags))
     }
 
     #[test]
     fn test_has_no_job_related_tags_without_allowed_tags() {
+        set_tags_file_env();
         let tags = vec![Tag {
             url: "".to_string(),
             name: "steve".to_string(),
         }];
         assert!(!has_job_related_tags(&tags))
+    }
+
+    fn set_tags_file_env() {
+        set_var("TAG_FILE", "./job_tags.txt");
     }
 }
