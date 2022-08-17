@@ -20,10 +20,11 @@ impl CliOptions {
         let mut opts = Options::new();
 
         opts.optflag("h", "help", "print this help menu");
-        opts.optflag("r", "register", "register hunter2 with your instance.");
         opts.optflag("f", "follow", "follow live updates.");
         opts.optflag("p", "past", "fetch past updates.");
         opts.optflag("m", "meili", "output to meilisearch");
+        opts.optflag("r", "register", "register hunter2 with your instance.");
+        opts.optopt("d", "delete", "remove an entry from the index", "TOOT_URL");
 
         let matches = match opts.parse(&args[1..]) {
             Ok(m) => m,
