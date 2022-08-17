@@ -1,5 +1,4 @@
 use elefren::entities::event::Event;
-use elefren::helpers::cli;
 use elefren::helpers::env;
 use elefren::prelude::*;
 
@@ -43,8 +42,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    // print help when requested
     if cli_opts.register {
-        register()?;
+        cli_opts.register();
         return Ok(());
     }
 
@@ -85,23 +85,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     messages_thread.join().unwrap();
     Ok(())
-}
-
-fn register() -> Result<Mastodon, Box<dyn Error>> {
-    let registration = Registration::new(std::env::var("BASE").expect("BASE"))
-        .client_name("hunter2")
-        .build()?;
-    let mastodon = cli::authenticate(registration)?;
-
-    // Print the ENV var to screen for copying into whatever we use (.env)
-    println!("Save these env vars in e.g. .env\n");
-    println!("export BASE=\"{}\"", &mastodon.data.base);
-    println!("export CLIENT_ID=\"{}\"", &mastodon.data.client_id);
-    println!("export CLIENT_SECRET=\"{}\"", &mastodon.data.client_secret);
-    println!("export REDIRECT=\"{}\"", &mastodon.data.redirect);
-    println!("export TOKEN=\"{}\"\n", &mastodon.data.token);
-
-    Ok(mastodon)
 }
 
 fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {

@@ -1,3 +1,5 @@
+use elefren::helpers::cli;
+use elefren::prelude::*;
 use getopts::Options;
 
 pub struct CliOptions {
@@ -41,13 +43,39 @@ impl CliOptions {
             past,
             follow,
             help,
-            opts,
             register,
+            opts,
         }
     }
 
     pub fn print_usage(&self) {
         let brief = format!("Usage: {} TEMPLATE_FILE [options]", &self.program);
         print!("{}", &self.opts.usage(&brief));
+    }
+
+    pub fn register(&self) {
+        let registration = Registration::new(std::env::var("BASE").expect("Read env var BASE"))
+            .client_name("hunter2")
+            .build()
+            .expect("Build registration request");
+        let mastodon = cli::authenticate(registration).expect("Attempt to register");
+
+        let message = format!(
+            "\
+                Save these env vars in .env
+
+                export BASE=\"{}\"\
+                export CLIENT_ID=\"{}\"\
+                export CLIENT_SECRET=\"{}\"\
+                export REDIRECT=\"{}\"\
+                export TOKEN=\"{}\"\
+        ",
+            &mastodon.data.base,
+            &mastodon.data.client_id,
+            &mastodon.data.client_secret,
+            &mastodon.data.redirect,
+            mastodon.data.token
+        );
+        print!("{}", message);
     }
 }
