@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    let output = Output::new(cli_opts.file_name, cli_opts.meilisearch);
+    let output = Output::new(cli_opts.meilisearch);
     env_logger::init();
 
     let data = match env::from_env() {
