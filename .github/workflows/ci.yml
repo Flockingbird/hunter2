@@ -3,7 +3,6 @@ name: CI
 
 on:  # yamllint disable-line rule:truthy
   push:
-    tags: ["*"]
     branches: ["main"]
   pull_request:
     branches: ["main"]
@@ -17,6 +16,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Prepare apt
+        run: sudo apt-get update
+      - name: Install yamllint
+        run: sudo apt-get install -y yamllint
+      - name: Install cargo
+        run: sudo apt-get install -y cargo
       - uses: actions/checkout@v3
       - name: Lint YAML
         run: yamllint ./.github/workflows/*.yml
@@ -27,9 +32,9 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
 
-  release:
+  build:
     needs: test
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -42,10 +47,33 @@ jobs:
           type: 'tar'
           filename: 'web.tar.gz'
           path: './web'
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - uses: actions/upload-artifact@v3
         with:
-          files: |
-            LICENSE
-            target/release/hunter2
-            web.tar.gz
+          name: hunter2
+          path: target/release/hunter2
+      - uses: actions/upload-artifact@v3
+        with:
+          name: web.tar.gz
+          path: web.tar.gz
+
+  deploy_binary:
+    needs:
+      - test
+      - build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: hunter2
+
+      - name: Upload hunter2
+        uses: burnett01/rsync-deployments@5.2.1
+        with:
+          switches: -avzr --delete
+          path: /tmp/hunter2
+          remote_path: /tmp/hunter2
+          remote_host: cool-arnberger.webschuur.com
+          remote_user: deploy
+          remote_key: ${{ secrets.DEPLOY_KEY }}
