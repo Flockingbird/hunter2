@@ -1,11 +1,12 @@
+---
 name: CI
 
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     tags: ["*"]
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,13 +17,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Lint
-      run: cargo check --verbose
-    - name: Build Debug version
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v3
+      - name: Lint YAML
+        run: yamllint ./.github/workflows/*.yml
+      - name: Lint Rust
+        run: cargo check --verbose
+      - name: Build Debug version
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
 
   release:
     needs: test
@@ -30,19 +33,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Build Release version
-      run: cargo build --release --verbose
-    - name: Archive Release
-      uses: thedoctor0/zip-release@main
-      with:
-        type: 'tar'
-        filename: 'web.tar.gz'
-        path: './web'
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          LICENSE
-          target/release/hunter2
-          web.tar.gz
+      - uses: actions/checkout@v3
+      - name: Build Release version
+        run: cargo build --release --verbose
+      - name: Archive Release
+        uses: thedoctor0/zip-release@main
+        with:
+          type: 'tar'
+          filename: 'web.tar.gz'
+          path: './web'
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            LICENSE
+            target/release/hunter2
+            web.tar.gz
