@@ -62,18 +62,21 @@ jobs:
       - build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      DEPLOYTO: "deploy@cool-arnberger.webschuur.com"
 
     steps:
       - uses: actions/download-artifact@v3
         with:
           name: hunter2
 
-      - name: Upload hunter2
-        uses: burnett01/rsync-deployments@5.2.1
-        with:
-          switches: -avzr --delete
-          path: /tmp/hunter2
-          remote_path: /tmp/hunter2
-          remote_host: cool-arnberger.webschuur.com
-          remote_user: deploy
-          remote_key: ${{ secrets.DEPLOY_KEY }}
+      - name: Set SSH key
+        run: |
+          echo "${{ secrets.DEPLOY_KEY }}" >> /tmp/id_rsa
+      - name: "Upload hunter2"
+        run: |
+          scp -i /tmp/id_rsa hunter2 $(DEPLOYTO):/tmp/hunter2
+          ssh -i /tmp/id_rsa $(DEPLOYTO) mv /tmp/hunter2 /usr/local/bin/hunter2
+      - name: "Restart service"
+        run: |
+          ssh -i /tmp/id_rsa $(DEPLOYTO) sudo systemctl restart hunter2.service
