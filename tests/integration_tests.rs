@@ -8,6 +8,7 @@ use std::panic;
 fn env_vars_not_set() {
     let mut cmd = Command::cargo_bin("hunter2").unwrap();
 
+    cmd.env_remove("BASE");
     cmd.env_remove("TAG_FILE");
 
     cmd.assert().failure().stderr(predicate::str::contains(
