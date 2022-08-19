@@ -55,28 +55,47 @@ jobs:
         with:
           name: web.tar.gz
           path: web.tar.gz
+      - uses: actions/upload-artifact@v3
+        with:
+          name: job_tags.txt
+          path: job_tags.txt
 
   deploy_binary:
-    needs:
-      - test
-      - build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      DEPLOYTO: "deploy@cool-arnberger.webschuur.com"
+      DEPLOYTO: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+      APPDIR: /u/apps/hunter2
+      WEBDIR: /u/apps/flockingbird_jobsearch/current/public/
 
     steps:
       - uses: actions/download-artifact@v3
         with:
           name: hunter2
+      - uses: actions/download-artifact@v3
+        with:
+          name: web.tar.gz
+      - uses: actions/download-artifact@v3
+        with:
+          name: job_tags.txt
 
-      - name: Set SSH key
-        run: |
-          echo "${{ secrets.DEPLOY_KEY }}" >> /tmp/id_rsa
-      - name: "Upload hunter2"
-        run: |
-          scp -v -i /tmp/id_rsa hunter2 ${DEPLOYTO}:/tmp/hunter2
-          ssh -v -i /tmp/id_rsa ${DEPLOYTO} mv /tmp/hunter2 /usr/local/bin/hunter2
-      - name: "Restart service"
-        run: |
-          ssh -v -i /tmp/id_rsa ${DEPLOYTO} sudo systemctl restart hunter2.service
+      - name: Prepare apt
+        run: sudo apt-get update
+      - name: Install rsync
+        run: sudo apt-get install -y rsync
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.4.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+      - name: Setup known_hosts
+        run: echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+      - name: Sync job_tags
+        run: rsync -avzr job_tags.txt ${DEPLOYTO}:${APPDIR}/shared/job_tags.txt
+      - name: Sync binary
+        run: rsync -avzr hunter2 ${DEPLOYTO}:/usr/local/bin/hunter2
+      - name: Restart Service
+        run: ssh ${DEPLOYTO} sudo systemctl restart hunter2.service
+      - name: unpack web
+        run: tar -xzf web.tar.gz
+      - name: doublecheck the unpacked stuff
+        run: rsync -avzr web/* ${DEPLOYTO}:${WEBDIR}
