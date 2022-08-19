@@ -75,8 +75,8 @@ jobs:
           echo "${{ secrets.DEPLOY_KEY }}" >> /tmp/id_rsa
       - name: "Upload hunter2"
         run: |
-          scp -i /tmp/id_rsa hunter2 $(DEPLOYTO):/tmp/hunter2
-          ssh -i /tmp/id_rsa $(DEPLOYTO) mv /tmp/hunter2 /usr/local/bin/hunter2
+          scp -i /tmp/id_rsa hunter2 ${DEPLOYTO}:/tmp/hunter2
+          ssh -i /tmp/id_rsa ${DEPLOYTO} mv /tmp/hunter2 /usr/local/bin/hunter2
       - name: "Restart service"
         run: |
-          ssh -i /tmp/id_rsa $(DEPLOYTO) sudo systemctl restart hunter2.service
+          ssh -i /tmp/id_rsa ${DEPLOYTO} sudo systemctl restart hunter2.service
