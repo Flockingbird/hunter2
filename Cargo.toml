@@ -13,7 +13,7 @@ futures = "0.3" # For meilisearch_sdk to access async features
 getopts = "0.2"
 chrono = "0.4"
 log = "0.4"
-meilisearch-sdk = "0.15.0"
+meilisearch-sdk = "0.17.0"
 regex = "1"
 reqwest = "0.9" # Version should be compat with the one webfinger uses.
 rust-crypto = "^0.2"
@@ -30,3 +30,4 @@ assert_cmd = "2.0"
 dotenv = "0.15.0"
 mockall = "0.11.2"
 predicates = "2.1"
+tokio = { version = "1.20.1", features = ["macros", "rt-multi-thread"] }

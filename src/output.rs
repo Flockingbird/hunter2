@@ -8,7 +8,6 @@ use futures::executor::block_on;
 use log::{debug, info};
 
 use meilisearch_sdk::client::Client;
-use meilisearch_sdk::document::Document;
 
 #[derive(Clone)]
 pub struct Output {
@@ -38,14 +37,6 @@ impl Output {
             info!("Writing to Meili {}: {}", uri, document);
             document.write_into_meili(uri, key);
         }
-    }
-}
-
-impl Document for Vacancy {
-    type UIDType = String;
-
-    fn get_uid(&self) -> &Self::UIDType {
-        &self.id
     }
 }
 
