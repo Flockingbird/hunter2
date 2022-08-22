@@ -7,18 +7,19 @@ use log::{debug, info};
 use meilisearch_sdk::client::Client;
 
 use core::fmt::Debug;
-use std::error::Error;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
 mod cli_options;
+mod error;
 mod job_tags;
 mod may_index;
 mod output;
 mod vacancy;
 
 use cli_options::CliOptions;
+use error::ProcessingError;
 use output::Output;
 
 use crate::may_index::may_index;
@@ -35,7 +36,7 @@ enum Message {
     Term,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), ProcessingError> {
     let cli_opts = CliOptions::new();
 
     // print help when requested
@@ -52,8 +53,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Delete a toot from index
     if let Some(toot_uri) = cli_opts.delete {
-        delete(toot_uri);
-        return Ok(());
+        return block_on(async move {
+            return delete(toot_uri).await;
+        });
     }
 
     let output = Output::new(cli_opts.meilisearch);
@@ -149,17 +151,21 @@ fn handle_messages(
     })
 }
 
-fn delete(toot_uri: String) {
+async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
     let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
     let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
     let client = Client::new(uri.as_str(), key.as_str());
     let index = client.index("vacancies");
 
     if let Some(id) = toot_uri.split("/").last() {
-        block_on(async move {
-            let task = index.delete_document(id).await.unwrap();
-            task.wait_for_completion(&client, None, None).await.unwrap();
-        });
+        let task = index.delete_document(id).await?;
+        task.wait_for_completion(&client, None, None).await?;
+        Ok(())
+    } else {
+        Err(ProcessingError::new(format!(
+            "Could not get an ID from {}",
+            toot_uri
+        )))
     }
 }
 
