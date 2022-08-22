@@ -2,7 +2,9 @@ use elefren::entities::event::Event;
 use elefren::helpers::env;
 use elefren::prelude::*;
 
+use futures::executor::block_on;
 use log::{debug, info};
+use meilisearch_sdk::client::Client;
 
 use core::fmt::Debug;
 use std::error::Error;
@@ -42,9 +44,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    // print help when requested
+    // register this client over OAUTH
     if cli_opts.register {
         cli_opts.register();
+        return Ok(());
+    }
+
+    // Delete a toot from index
+    if let Some(toot_uri) = cli_opts.delete {
+        delete(toot_uri);
         return Ok(());
     }
 
@@ -139,6 +147,20 @@ fn handle_messages(
         }
         thread::sleep(THREAD_SLEEP_DURATION);
     })
+}
+
+fn delete(toot_uri: String) {
+    let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
+    let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+    let client = Client::new(uri.as_str(), key.as_str());
+    let index = client.index("vacancies");
+
+    if let Some(id) = toot_uri.split("/").last() {
+        block_on(async move {
+            let task = index.delete_document(id).await.unwrap();
+            task.wait_for_completion(&client, None, None).await.unwrap();
+        });
+    }
 }
 
 #[cfg(test)]

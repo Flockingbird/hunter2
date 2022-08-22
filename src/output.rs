@@ -50,8 +50,8 @@ impl IntoMeili for Vacancy {
     fn write_into_meili(&self, uri: String, key: String) {
         let client = Client::new(uri.as_str(), key.as_str());
         let document = self.clone();
+        let index = client.index("vacancies");
         block_on(async move {
-            let index = client.index("vacancies");
             index.add_documents(&[document], Some("id")).await.unwrap();
         });
     }

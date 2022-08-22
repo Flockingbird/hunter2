@@ -8,6 +8,7 @@ pub struct CliOptions {
     pub follow: bool,
     pub past: bool,
     pub meilisearch: bool,
+    pub delete: Option<String>,
 
     program: String,
     opts: Options,
@@ -38,6 +39,8 @@ impl CliOptions {
         let past = matches.opt_present("p");
         let follow = matches.opt_present("f");
 
+        let delete = matches.opt_str("d");
+
         Self {
             program,
             meilisearch,
@@ -45,6 +48,7 @@ impl CliOptions {
             follow,
             help,
             register,
+            delete,
             opts,
         }
     }
