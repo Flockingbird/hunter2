@@ -157,7 +157,7 @@ async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
     let client = Client::new(uri.as_str(), key.as_str());
     let index = client.index("vacancies");
 
-    if let Some(id) = toot_uri.split("/").last() {
+    if let Some(id) = toot_uri.split('/').last() {
         let task = index.delete_document(id).await?;
         task.wait_for_completion(&client, None, None).await?;
         Ok(())
