@@ -61,7 +61,7 @@ jobs:
           path: job_tags.txt
 
   deploy_binary:
-    needs: 
+    needs:
       - test
       - build
     if: github.ref == 'refs/heads/main'
