@@ -70,7 +70,7 @@
 
         insertHits(result.hits)
 
-        if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
+        if (!result.exhaustiveNbHits) {
           insertPager(offset + perPage);
         }
       }
@@ -90,7 +90,7 @@
 
           replaceHits(result.hits);
 
-          if (!result.exhaustiveNbHits) { // TODO: exhaustiveNbHits does not work as expected on next pages. The button will stay in place.
+          if (!result.exhaustiveNbHits) {
             insertPager(0 + perPage);
           }
       }
