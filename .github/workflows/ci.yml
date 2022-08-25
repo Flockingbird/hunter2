@@ -96,6 +96,8 @@ jobs:
         run: rsync -avzr job_tags.txt ${DEPLOYTO}:${APPDIR}/shared/job_tags.txt
       - name: Sync binary
         run: rsync -avzr hunter2 ${DEPLOYTO}:/usr/local/bin/hunter2
+      - name: Set permissions on binary
+        run: ssh ${DEPLOYTO} chmod +x /usr/local/bin/hunter2
       - name: Restart Service
         run: ssh ${DEPLOYTO} sudo systemctl restart hunter2.service
       - name: unpack web
