@@ -15,6 +15,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      meilisearch:
+        image: getmeili/meilisearch:v0.27.2
+        ports:
+          - 7701:7700
+
     steps:
       - name: Prepare apt
         run: sudo apt-get update
