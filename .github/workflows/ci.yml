@@ -93,7 +93,7 @@ jobs:
       - name: Install rsync
         run: sudo apt-get install -y rsync
       - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.4.0
+        uses: webfactory/ssh-agent@v0.5.4
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY }}
       - name: Setup known_hosts
