@@ -44,6 +44,6 @@ curl \
 curl \
   -X POST 'http://search.example.com/indexes/vacancies/settings/filterable-attributes' \
   -H 'Content-Type: application/json' \
-  --data-binary '["tags", "language"]'
+  --data-binary '["tags", "language", "url"]'
 ```
 This modifies the ranking, adds a sortable attribute and adds the required filters for faceted search etc?

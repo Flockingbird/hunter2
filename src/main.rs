@@ -23,6 +23,7 @@ use error::ProcessingError;
 use output::Output;
 
 use crate::may_index::may_index;
+use crate::vacancy::Vacancy;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -54,6 +55,7 @@ fn main() -> Result<(), ProcessingError> {
     // Delete a toot from index
     if let Some(toot_uri) = cli_opts.delete {
         return block_on(async move {
+            println!("Deleting {}", toot_uri);
             return delete(toot_uri).await;
         });
     }
@@ -157,15 +159,23 @@ async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
     let client = Client::new(uri.as_str(), key.as_str());
     let index = client.index("vacancies");
 
-    if let Some(id) = toot_uri.split('/').last() {
-        let task = index.delete_document(id).await?;
-        task.wait_for_completion(&client, None, None).await?;
-        Ok(())
-    } else {
+    let results = index
+        .search()
+        .with_filter(format!("url = '{}'", toot_uri).as_str())
+        .execute::<Vacancy>()
+        .await?;
+
+    if results.nb_hits == 0 {
         Err(ProcessingError::new(format!(
-            "Could not get an ID from {}",
+            "could not find a vacancy with url: {}",
             toot_uri
         )))
+    } else {
+        for hit in results.hits.iter() {
+            let task = index.delete_document(&hit.result.id).await?;
+            task.wait_for_completion(&client, None, None).await?;
+        }
+        Ok(())
     }
 }
 

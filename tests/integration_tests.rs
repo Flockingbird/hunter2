@@ -9,6 +9,7 @@ use std::process::Command;
 #[derive(Serialize, Deserialize, Debug)]
 struct TestVacancy {
     pub id: String,
+    pub url: String,
     pub uri: String,
     pub content: String,
 }
@@ -36,14 +37,21 @@ async fn delete_from_index() {
     task.wait_for_completion(&client, None, None).await.unwrap();
 
     let vacancies = client.index("vacancies");
+    let filterable_attributes = ["tags", "language", "url"];
+    vacancies
+        .set_filterable_attributes(&filterable_attributes)
+        .await
+        .unwrap();
+
     let task: Task = vacancies.delete_all_documents().await.unwrap();
     task.wait_for_completion(&client, None, None).await.unwrap();
 
     let task = vacancies
         .add_documents(
             &[TestVacancy {
-                id: "1337".to_string(),
-                uri: "https://example.com/@foo@example.com/1337".to_string(),
+                id: "42".to_string(),
+                url: "https://example.com/@foo@example.com/1337".to_string(),
+                uri: "https://example.com/users/foo/statuses/1337".to_string(),
                 content: "We are hiring".to_string(),
             }],
             Some("id"),
