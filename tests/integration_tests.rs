@@ -1,6 +1,8 @@
 use assert_cmd::prelude::*;
 use dotenv;
 use meilisearch_sdk::client::Client;
+use meilisearch_sdk::indexes::Index;
+use meilisearch_sdk::search::SearchResults;
 use meilisearch_sdk::tasks::Task;
 use predicates::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -28,13 +30,43 @@ fn env_vars_not_set() {
 
 #[tokio::test]
 async fn delete_from_index() {
-    env();
+    let client = given_a_meilisearch_client();
+    let index = given_a_clean_index(&client).await;
+    given_a_vacancy_in_index(
+        &client,
+        &index,
+        TestVacancy {
+            id: "42".to_string(),
+            url: "https://example.com/@foo@example.com/1337".to_string(),
+            uri: "https://example.com/users/foo/statuses/1337".to_string(),
+            content: "We are hiring".to_string(),
+        },
+    )
+    .await;
+
+    let results = when_searched_for(&index, "hiring").await;
+    assert!(results.hits.len() == 1);
+
+    let mut cmd = Command::cargo_bin("hunter2").unwrap();
+    cmd.arg("--delete")
+        .arg("https://example.com/@foo@example.com/1337");
+
+    cmd.assert().success();
+
+    let results = when_searched_for(&index, "hiring").await;
+    assert!(results.hits.len() == 0);
+}
+
+fn given_a_meilisearch_client() -> Client {
+    dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
     let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
     let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+    Client::new(uri.as_str(), key)
+}
 
-    let client = Client::new(uri.as_str(), key);
+async fn given_a_clean_index(client: &Client) -> Index {
     let task = client.create_index("vacancies", Some("id")).await.unwrap();
-    task.wait_for_completion(&client, None, None).await.unwrap();
+    task.wait_for_completion(client, None, None).await.unwrap();
 
     let vacancies = client.index("vacancies");
     let filterable_attributes = ["tags", "language", "url"];
@@ -44,47 +76,21 @@ async fn delete_from_index() {
         .unwrap();
 
     let task: Task = vacancies.delete_all_documents().await.unwrap();
-    task.wait_for_completion(&client, None, None).await.unwrap();
+    task.wait_for_completion(client, None, None).await.unwrap();
 
-    let task = vacancies
-        .add_documents(
-            &[TestVacancy {
-                id: "42".to_string(),
-                url: "https://example.com/@foo@example.com/1337".to_string(),
-                uri: "https://example.com/users/foo/statuses/1337".to_string(),
-                content: "We are hiring".to_string(),
-            }],
-            Some("id"),
-        )
-        .await
-        .unwrap();
-    task.wait_for_completion(&client, None, None).await.unwrap();
-
-    let results = vacancies
-        .search()
-        .with_query("hiring")
-        .with_limit(5)
-        .execute::<TestVacancy>()
-        .await
-        .unwrap();
-    assert!(results.hits.len() == 1);
-
-    let mut cmd = Command::cargo_bin("hunter2").unwrap();
-    cmd.arg("--delete")
-        .arg("https://example.com/@foo@example.com/1337");
-
-    cmd.assert().success();
-
-    let results = vacancies
-        .search()
-        .with_query("hiring")
-        .with_limit(5)
-        .execute::<TestVacancy>()
-        .await
-        .unwrap();
-    assert!(results.hits.len() == 0);
+    vacancies
 }
 
-fn env() {
-    dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
+async fn given_a_vacancy_in_index(client: &Client, index: &Index, vacancy: TestVacancy) {
+    let task = index.add_documents(&[vacancy], Some("id")).await.unwrap();
+    task.wait_for_completion(client, None, None).await.unwrap();
+}
+
+async fn when_searched_for(index: &Index, query: &str) -> SearchResults<TestVacancy> {
+    index
+        .search()
+        .with_query(query)
+        .execute::<TestVacancy>()
+        .await
+        .unwrap()
 }
