@@ -18,6 +18,7 @@
         apiKey: meiliSearchPubApiKey,
       });
       const index = client.index('vacancies');
+      const urlParams = new URLSearchParams(window.location.search);
 
       document.addEventListener('DOMContentLoaded', () => {
         (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
@@ -28,20 +29,29 @@
           });
         });
 
-        const searchForm = document.getElementById('search-form');
-        searchForm.addEventListener('submit', function(event) {
-          event.preventDefault();
-          resetTags();
+        if (urlParams.get('q')) {
           doSearch().then(handleSearchResponse);
-        });
-
-        prefillDefault();
+        } else {
+          prefillDefault();
+        }
       });
 
+      const urlFor = function({ query = null, offset = null, tags = [] } = {}) {
+        let params = new URLSearchParams(urlParams);
+        if (query) {
+          params.set('q', query);
+        }
+        if (offset) {
+          params.set('offset', offset);
+        }
+
+        params.delete('tags');
+        tags.forEach(tag => params.append('tags', tag));
+        return '?' + params.toString();
+      }
+
       const getActiveTags = function() {
-        const activeNodes = document.getElementById('active-tags')
-                                    .querySelectorAll('.list-item');
-        return Array.from(activeNodes).map((li) => li.dataset.tagName)
+        return (urlParams.getAll('tags') || []);
       };
 
       const prefillDefault = function() {
@@ -75,7 +85,7 @@
               .filter(notCommonName)
               .filter(notSpammy)
               .sort(sortByCount)
-            replaceTags(tags);
+            insertTags(tags);
           }
 
           replaceHits(result.hits);
@@ -86,7 +96,7 @@
       }
 
       const doSearch = function(offset = 0) {
-        const query = document.getElementById('search-field').value;
+        const query = urlParams.get('q');
 
         removePager();
         var options =  {
@@ -95,9 +105,9 @@
           facetsDistribution: ['tags.name']
         }
 
-        const filter = getActiveTags().map((tagName) => `tags.name = "${tagName}"`);
-        if (filter.length > 0) {
-          options.filter = filter;
+        const tags = getActiveTags();
+        if (tags.length > 0) {
+          options.filter = tags.map((tagName) => `tags.name = "${tagName}"`);
         }
 
         return index.search(query, options);
@@ -107,11 +117,10 @@
         const page_tmpl = document.getElementById('pager');
         const results_container = document.getElementById('results');
         var clone = page_tmpl.content.cloneNode(true);
-
         clone.firstElementChild.addEventListener('click', function(event) {
           event.preventDefault();
           doSearch(offset).then((result) => handleNextPage(result, offset));
-        });
+        });  
         results_container.appendChild(clone);
       };
 
@@ -132,12 +141,11 @@
         document.getElementById('inactive-tags').innerHTML = '';
       };
 
-      const replaceTags = function(filterTags) {
+      const insertTags = function(filterTags) {
         const tag_tmpl = document.getElementById('refine-tag');
-        const tagsContainer = document.getElementById('inactive-tags');
+        const activeTagsContainer = document.getElementById('active-tags');
+        const inactiveTagsContainer = document.getElementById('inactive-tags');
         const activeTags = getActiveTags();
-
-        tagsContainer.innerHTML = '';
 
         filterTags.forEach((tag) => {
           if (activeTags.includes(tag.name)) { return; }
@@ -148,13 +156,26 @@
           li.dataset.tagName = tag.name;
           li.querySelector('.name').innerText = tag.name;
           li.querySelector('.count').innerText = `(${tag.count})`;
+          const inclusiveTags = activeTags.concat([tag.name]);
+          li.querySelector('a').href = urlFor({ tags: inclusiveTags });
 
-          li.querySelector('a').addEventListener('click', handleRefine);
-
-          tagsContainer.appendChild(li);
+          inactiveTagsContainer.appendChild(li);
         });
 
-        showTagsBlockIf(filterTags.length > 0);
+        activeTags.forEach((tag_name) => {
+          var clone = tag_tmpl.content.cloneNode(true);
+          var li = clone.querySelector('li');
+
+          li.dataset.tagName = tag_name;
+          li.classList.toggle('is-active');
+          li.querySelector('.name').innerText = tag_name;
+          const exclusiveTags = activeTags.filter(tag => tag != tag_name);
+          li.querySelector('a').href = urlFor({ tags: exclusiveTags });
+
+          activeTagsContainer.appendChild(li);
+        });
+
+        showTagsBlockIf(filterTags.length + activeTags.length > 0);
       };
 
       const extractFacetTags = function(result) {
@@ -261,10 +282,10 @@
             <img src="/images/search.png" alt="FlockingBird">
           </div>
           <div class="column is-8">
-            <form id="search-form">
+            <form method="get" id="search-form">
               <div class="field has-addons">
                 <div class="control is-expanded">
-                  <input type="search" id="search-field" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
+                  <input type="search" name="q" id="search-field" class="input is-large is-rounded" placeholder="Search job openings on the fediverse here…"/>
                 </div>
                 <div class="control">
                   <button class="button is-large is-rounded is-brand-color">
