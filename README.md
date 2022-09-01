@@ -9,7 +9,6 @@ The [editable sequence diagram](https://www.plantuml.com/plantuml/uml/VOvFIiKm4C
 
 ![Plantuml Sequence Diagram](/doc/sequence_diagram.png)
 
-
 ## Storage for search in Meilisearch.
 
 Meilisearch is an indexed search engine, similar to Elasticsearch. But much
