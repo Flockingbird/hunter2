@@ -1,8 +1,12 @@
 use elefren::entities::event::Event;
+use elefren::entities::notification::Notification;
+use elefren::entities::status::Status;
 use elefren::helpers::env;
 use elefren::prelude::*;
+use regex::Regex;
 
 use futures::executor::block_on;
+use lazy_static::lazy_static;
 use log::{debug, info};
 use meilisearch_sdk::client::Client;
 
@@ -33,7 +37,7 @@ const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 #[derive(Debug)]
 enum Message {
     Generic(String),
-    Vacancy(elefren::entities::status::Status),
+    Vacancy(Status),
     Term,
 }
 
@@ -107,6 +111,28 @@ fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {
             .any(|e| job_tags::tags(&std::env::var("TAG_FILE").unwrap()).contains(&e))
 }
 
+fn is_in_reply_to(mastodon: &elefren::Mastodon, notification: &Notification) -> Option<Status> {
+    if let Some(status) = &notification.status {
+        if let Some(reply_to_id) = &status.in_reply_to_id {
+            let vacancy = mastodon.get_status(reply_to_id).unwrap();
+            Some(vacancy)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
+fn has_indexme_request(content: &str) -> bool {
+    // Matches "... index me ...", "indexme" etc.
+    // But not "index like me" or "reindex meebo"
+    lazy_static! {
+        static ref RE: Regex = Regex::new("\\Windex\\s?me\\W").unwrap();
+    };
+    RE.is_match(content)
+}
+
 fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for event in mastodon.streaming_public().unwrap() {
@@ -117,7 +143,13 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                         tx.send(Message::Vacancy(status)).unwrap();
                     }
                 }
-                Event::Notification(ref _notification) => { /* .. */ }
+                Event::Notification(ref notification) => {
+                    if let Some(status) = is_in_reply_to(&mastodon, notification) {
+                        if has_indexme_request(&status.content) {
+                            tx.send(Message::Vacancy(status)).unwrap();
+                        }
+                    }
+                }
                 Event::Delete(ref _id) => { /* .. */ }
                 Event::FiltersChanged => { /* .. */ }
             }
@@ -226,6 +258,38 @@ mod tests {
             name: "steve".to_string(),
         }];
         assert!(!has_job_related_tags(&tags))
+    }
+
+    #[test]
+    fn test_notification_has_request_to_index_with_phrase() {
+        let content =
+            String::from("<p>Hi there, @hunter2@example.com, please index me, if you will?<p>");
+        assert!(has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_request_to_index_with_tag() {
+        let content =
+            String::from("<p>please <a href=\"\">#<span>vacancy</span>indexme<span></a>!<p>");
+        assert!(has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_phrase() {
+        let content = String::from("<p>are you a bot?<p>");
+        assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_stretched_phrase() {
+        let content = String::from("<p>Where is the index? Could you tell me?<p>");
+        assert!(!has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_no_request_to_index_with_partial_words() {
+        let content = String::from("<p>reindex meebo<p>");
+        assert!(!has_indexme_request(&content))
     }
 
     fn set_tags_file_env() {

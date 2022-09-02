@@ -1108,6 +1108,7 @@ dependencies = [
  "error-chain",
  "futures 0.3.23",
  "getopts",
+ "lazy_static",
  "log",
  "meilisearch-sdk",
  "mockall",
