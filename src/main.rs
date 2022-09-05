@@ -7,7 +7,7 @@ use regex::Regex;
 
 use futures::executor::block_on;
 use lazy_static::lazy_static;
-use log::{debug, info};
+use log::{debug, error, info};
 use meilisearch_sdk::client::Client;
 
 use core::fmt::Debug;
@@ -171,7 +171,10 @@ fn handle_messages(
                     if may_index(&status.account.url) {
                         debug!("Handling vacancy: {:#?}", status);
                         output.handle_vacancy(&status.clone().into());
-                        client.favourite(&status.id).expect("Favourite failed");
+                        client.favourite(&status.id).map_or_else(
+                            |_| info!("Favourited {}", &status.id),
+                            |err| error!("Could not favourite {}: {:#?}", &status.id, err),
+                        );
                     }
                 }
                 Message::Generic(msg) => info!("{}", msg),
