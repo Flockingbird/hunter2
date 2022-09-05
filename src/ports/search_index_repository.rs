@@ -8,16 +8,16 @@ use meilisearch_sdk::client::Client;
 use serde::Serialize;
 
 #[derive(Clone)]
-pub struct SearchIndexPort {
+pub struct SearchIndexRepository {
     meilisearch: bool,
 }
 
-impl SearchIndexPort {
+impl SearchIndexRepository {
     pub(crate) fn new(meilisearch: bool) -> Self {
         Self { meilisearch }
     }
 
-    pub(crate) fn handle_vacancy(&self, vacancy: &Vacancy) {
+    pub(crate) fn add(&self, vacancy: &Vacancy) {
         self.write_into_meili(vacancy);
     }
 

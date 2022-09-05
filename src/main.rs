@@ -18,12 +18,13 @@ use std::time::Duration;
 mod cli_options;
 mod error;
 mod hunter2;
-mod job_tags;
 mod ports;
 
 use cli_options::CliOptions;
 use error::ProcessingError;
-use ports::search_index_port::SearchIndexPort;
+
+use ports::job_tags_repository::{JobTagsFileRepository, JobTagsRepository};
+use ports::search_index_repository::SearchIndexRepository;
 
 use hunter2::may_index::may_index;
 use hunter2::vacancy::Vacancy;
@@ -63,9 +64,6 @@ fn main() -> Result<(), ProcessingError> {
         });
     }
 
-    let search_index_port = SearchIndexPort::new(cli_opts.meilisearch);
-    env_logger::init();
-
     let data = match env::from_env() {
         Ok(data) => data,
         Err(err) => {
@@ -74,14 +72,17 @@ fn main() -> Result<(), ProcessingError> {
     };
     let mastodon = Mastodon::from(data);
 
+    let search_index_repository = SearchIndexRepository::new(cli_opts.meilisearch);
+    let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE").unwrap());
+    env_logger::init();
+
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
-    let messages_thread = handle_messages(rx, search_index_port, mastodon.clone());
+    let messages_thread = handle_messages(rx, search_index_repository, mastodon.clone());
 
     if cli_opts.past {
-        // TODO: This method will return duplicates. So we should deduplicate
-        for tag in job_tags::tags(&std::env::var("TAG_FILE").unwrap()) {
+        for tag in job_tags_repository.tags() {
             for status in mastodon.get_tagged_timeline(tag, false)? {
-                if has_job_related_tags(&status.tags) {
+                if has_job_related_tags(&status.tags, &job_tags_repository) {
                     tx.send(Message::Vacancy(status)).unwrap();
                 }
             }
@@ -102,12 +103,15 @@ fn main() -> Result<(), ProcessingError> {
     Ok(())
 }
 
-fn has_job_related_tags(tags: &[elefren::entities::status::Tag]) -> bool {
+fn has_job_related_tags<T: JobTagsRepository>(
+    tags: &[elefren::entities::status::Tag],
+    job_tags_repository: &T,
+) -> bool {
     !tags.is_empty()
         && tags
             .iter()
             .map(|t| t.name.to_owned())
-            .any(|e| job_tags::tags(&std::env::var("TAG_FILE").unwrap()).contains(&e))
+            .any(|e| job_tags_repository.tags().contains(&e))
 }
 
 fn is_in_reply_to(mastodon: &elefren::Mastodon, notification: &Notification) -> Option<Status> {
@@ -134,10 +138,11 @@ fn has_indexme_request(content: &str) -> bool {
 
 fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
+        let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE").unwrap());
         for event in mastodon.streaming_public().unwrap() {
             match event {
                 Event::Update(status) => {
-                    if has_job_related_tags(&status.tags) {
+                    if has_job_related_tags(&status.tags, &job_tags_repository) {
                         debug!("Update {} is a vacancy", &status.id);
                         tx.send(Message::Vacancy(status)).unwrap();
                     }
@@ -158,7 +163,7 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
 
 fn handle_messages(
     rx: Receiver<Message>,
-    search_index_port: SearchIndexPort,
+    search_index_repository: SearchIndexRepository,
     client: Mastodon,
 ) -> thread::JoinHandle<()> {
     debug!("opening message handler");
@@ -169,7 +174,7 @@ fn handle_messages(
                 Message::Vacancy(status) => {
                     if may_index(&status.account.url) {
                         debug!("Handling vacancy: {:#?}", status);
-                        search_index_port.handle_vacancy(&status.clone().into());
+                        search_index_repository.add(&status.clone().into());
                         client.favourite(&status.id).map_or_else(
                             |_| info!("Favourited {}", &status.id),
                             |err| error!("Could not favourite {}: {:#?}", &status.id, err),
@@ -215,23 +220,22 @@ async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::ports::job_tags_repository::JobTagsMemoryRepository;
+
     use super::*;
     use elefren::entities::status::Tag;
-    use std::env::set_var;
 
     #[test]
     fn test_has_job_related_tags_with_jobs_tag() {
-        set_tags_file_env();
         let tags = vec![Tag {
             url: "".to_string(),
             name: "jobs".to_string(),
         }];
-        assert!(has_job_related_tags(&tags))
+        assert!(has_job_related_tags(&tags, &job_tags_repository()))
     }
 
     #[test]
     fn test_has_job_related_tags_with_multiple_tags() {
-        set_tags_file_env();
         let tags = vec![
             Tag {
                 url: "".to_string(),
@@ -242,24 +246,22 @@ mod tests {
                 name: "steve".to_string(),
             },
         ];
-        assert!(has_job_related_tags(&tags))
+        assert!(has_job_related_tags(&tags, &job_tags_repository()))
     }
 
     #[test]
     fn test_has_no_job_related_tags_without_tags() {
-        set_tags_file_env();
         let tags = vec![];
-        assert!(!has_job_related_tags(&tags))
+        assert!(!has_job_related_tags(&tags, &job_tags_repository()))
     }
 
     #[test]
     fn test_has_no_job_related_tags_without_allowed_tags() {
-        set_tags_file_env();
         let tags = vec![Tag {
             url: "".to_string(),
             name: "steve".to_string(),
         }];
-        assert!(!has_job_related_tags(&tags))
+        assert!(!has_job_related_tags(&tags, &job_tags_repository()))
     }
 
     #[test]
@@ -294,7 +296,9 @@ mod tests {
         assert!(!has_indexme_request(&content))
     }
 
-    fn set_tags_file_env() {
-        set_var("TAG_FILE", "./job_tags.txt");
+    fn job_tags_repository() -> impl JobTagsRepository {
+        JobTagsMemoryRepository {
+            tags: vec!["jobs".to_string()],
+        }
     }
 }
