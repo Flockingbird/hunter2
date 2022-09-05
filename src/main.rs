@@ -17,17 +17,16 @@ use std::time::Duration;
 
 mod cli_options;
 mod error;
+mod hunter2;
 mod job_tags;
-mod may_index;
-mod output;
-mod vacancy;
+mod ports;
 
 use cli_options::CliOptions;
 use error::ProcessingError;
-use output::Output;
+use ports::search_index_port::SearchIndexPort;
 
-use crate::may_index::may_index;
-use crate::vacancy::Vacancy;
+use hunter2::may_index::may_index;
+use hunter2::vacancy::Vacancy;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -64,7 +63,7 @@ fn main() -> Result<(), ProcessingError> {
         });
     }
 
-    let output = Output::new(cli_opts.meilisearch);
+    let search_index_port = SearchIndexPort::new(cli_opts.meilisearch);
     env_logger::init();
 
     let data = match env::from_env() {
@@ -76,7 +75,7 @@ fn main() -> Result<(), ProcessingError> {
     let mastodon = Mastodon::from(data);
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
-    let messages_thread = handle_messages(rx, output, mastodon.clone());
+    let messages_thread = handle_messages(rx, search_index_port, mastodon.clone());
 
     if cli_opts.past {
         // TODO: This method will return duplicates. So we should deduplicate
@@ -159,7 +158,7 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
 
 fn handle_messages(
     rx: Receiver<Message>,
-    output: Output,
+    search_index_port: SearchIndexPort,
     client: Mastodon,
 ) -> thread::JoinHandle<()> {
     debug!("opening message handler");
@@ -170,7 +169,7 @@ fn handle_messages(
                 Message::Vacancy(status) => {
                     if may_index(&status.account.url) {
                         debug!("Handling vacancy: {:#?}", status);
-                        output.handle_vacancy(&status.clone().into());
+                        search_index_port.handle_vacancy(&status.clone().into());
                         client.favourite(&status.id).map_or_else(
                             |_| info!("Favourited {}", &status.id),
                             |err| error!("Could not favourite {}: {:#?}", &status.id, err),
