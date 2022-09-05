@@ -3,18 +3,19 @@ pub trait JobTagsRepository {
 }
 
 pub struct JobTagsFileRepository {
-    file_name: String,
+    tags: Vec<String>,
 }
 
 impl JobTagsFileRepository {
     pub fn new(file_name: String) -> Self {
-        Self { file_name }
+        let tags = read_all(&file_name);
+        Self { tags }
     }
 }
 
 impl JobTagsRepository for JobTagsFileRepository {
     fn tags(&self) -> Vec<String> {
-        read_all(&self.file_name)
+        self.tags.clone()
     }
 }
 
