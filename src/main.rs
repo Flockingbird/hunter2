@@ -148,8 +148,11 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                     }
                 }
                 Event::Notification(ref notification) => {
+                    debug!("Recieved a notification: {:#?}", &notification.notification_type);
                     if let Some(status) = is_in_reply_to(&mastodon, notification) {
+                        debug!("Notification is a reply to: {}", &status.id);
                         if has_indexme_request(&status.content) {
+                            debug!("Notification has an indexme request: {}", &status.content);
                             tx.send(Message::Vacancy(status)).unwrap();
                         }
                     }
