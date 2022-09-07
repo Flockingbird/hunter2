@@ -92,9 +92,14 @@ fn main() -> Result<(), ProcessingError> {
     if cli_opts.follow {
         tx.send(Message::Generic(String::from("📨 Listening for vacancies")))
             .unwrap();
-        let updates_thread = capture_updates(mastodon, tx);
+        let updates_thread = capture_updates(mastodon.clone(), tx.clone());
+
+        tx.send(Message::Generic(String::from(" 📨 Listening for notifications")))
+            .unwrap();
+        let notifications_thread = capture_notifications(mastodon, tx);
 
         updates_thread.join().unwrap();
+        notifications_thread.join().unwrap();
     } else {
         tx.send(Message::Term).unwrap();
     }
@@ -147,9 +152,25 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                         tx.send(Message::Vacancy(status)).unwrap();
                     }
                 }
-                Event::Notification(ref notification) => {
+                Event::Notification(ref _notification) => { }
+                Event::Delete(ref _id) => { /* .. */ }
+                Event::FiltersChanged => { /* .. */ }
+            }
+        }
+    })
+}
+ 
+fn capture_notifications(
+    mastodon: elefren::Mastodon,
+    tx: Sender<Message>,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        for event in mastodon.streaming_user().unwrap() {
+            match event {
+                Event::Update(ref _status) => { /* .. */ }
+                Event::Notification(notification) => {
                     debug!("Recieved a notification: {:#?}", &notification.notification_type);
-                    if let Some(status) = is_in_reply_to(&mastodon, notification) {
+                    if let Some(status) = is_in_reply_to(&mastodon, &notification) {
                         debug!("Notification is a reply to: {}", &status.id);
                         if has_indexme_request(&status.content) {
                             debug!("Notification has an indexme request: {}", &status.content);
