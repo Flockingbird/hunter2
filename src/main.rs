@@ -133,10 +133,10 @@ fn is_in_reply_to(mastodon: &elefren::Mastodon, notification: &Notification) -> 
 }
 
 fn has_indexme_request(content: &str) -> bool {
-    // Matches "... index me ...", "indexme" etc.
-    // But not "index like me" or "reindex meebo"
+    // Matches "... index this ...", "indexthis" etc.
+    // But not "index like this" or "reindex thistle"
     lazy_static! {
-        static ref RE: Regex = Regex::new("\\Windex\\s?me\\W").unwrap();
+        static ref RE: Regex = Regex::new("\\Windex\\s?this\\W").unwrap();
     };
     RE.is_match(content)
 }
@@ -291,14 +291,21 @@ mod tests {
     #[test]
     fn test_notification_has_request_to_index_with_phrase() {
         let content =
-            String::from("<p>Hi there, @hunter2@example.com, please index me, if you will?<p>");
+            String::from("<p>Hi there, @hunter2@example.com, please index this, if you will?<p>");
+        assert!(has_indexme_request(&content))
+    }
+
+    #[test]
+    fn test_notification_has_request_to_index_with_word() {
+        let content =
+            String::from("<p>indexthis<p>");
         assert!(has_indexme_request(&content))
     }
 
     #[test]
     fn test_notification_has_request_to_index_with_tag() {
         let content =
-            String::from("<p>please <a href=\"\">#<span>vacancy</span>indexme<span></a>!<p>");
+            String::from("<p>please <a href=\"\">#indexthis</a>!<p>");
         assert!(has_indexme_request(&content))
     }
 
@@ -316,7 +323,7 @@ mod tests {
 
     #[test]
     fn test_notification_has_no_request_to_index_with_partial_words() {
-        let content = String::from("<p>reindex meebo<p>");
+        let content = String::from("<p>reindex thistle<p>");
         assert!(!has_indexme_request(&content))
     }
 
