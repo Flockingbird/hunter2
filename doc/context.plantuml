@@ -1,0 +1,20 @@
+@startuml
+!include <C4/C4_Container>
+
+
+Person(org, "Organisation", "Is looking for people")
+Person(seeker, "Job Seeker", "Is looking for work")
+
+System(bot, "Bot", "Technology")
+System(fediverse, "Fediverse", "The larger fediverse")
+System(instance, "Instance", "Instance where the bot is registered (botsin.space)")
+System(searchPage, "Search Page", "Technology")
+
+
+Rel(seeker, searchPage, "Searches for Jobs", "by tag and keywork")
+Rel(org, fediverse, "Posts a status with #vacancy")
+Rel(fediverse, instance, "Delivers statuses to instance")
+Rel(instance, bot, "Pushes status to bot")
+Rel(bot, instance, "Fetches new statuses for tag")
+Rel(bot, searchPage, "Indexes status")
+@enduml

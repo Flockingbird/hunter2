@@ -1,0 +1,20 @@
+@startuml
+NotificationSocketClient -> FulfillNotificationCommand: new()
+FulfillNotificationCommand -> NotificationSocketClient: command
+NotificationSocketClient -> FulfillNotificationCommandHandler: new()
+FulfillNotificationCommandHandler -> NotificationSocketClient: command_handler
+NotificationSocketClient -> FulfillNotificationCommandHandler: handle(command)
+
+FulfillNotificationCommandHandler -> Notification: new()
+Notification -> FulfillNotificationCommandHandler: notification
+FulfillNotificationCommandHandler -> Notification: handle
+Notification -> Notification: is_reply()
+Notification -> Reply: from(notification)
+Reply -> Notification: reply
+Notification -> Reply: handle()
+' TODO: all communication with self.
+Reply -> Vacancy: from(reply)
+Vacancy -> Reply: from(reply)
+Vacancy -> SearchIndexRepo: add(vacancy)
+SearchIndexRepo --> Vacancy: 202 Accepted
+@enduml
