@@ -1,4 +1,5 @@
-use std::{error::Error, fmt};
+use crate::Message;
+use std::{error::Error, fmt, sync::mpsc::SendError};
 
 #[derive(Debug)]
 pub struct ProcessingError {
@@ -27,6 +28,13 @@ impl From<elefren::Error> for ProcessingError {
     fn from(err: elefren::Error) -> Self {
         ProcessingError {
             message: format!("Elefren reported: {:?}", err),
+        }
+    }
+}
+impl From<SendError<Message>> for ProcessingError {
+    fn from(err: SendError<Message>) -> Self {
+        ProcessingError {
+            message: format!("Message queue reported: {:?}", err),
         }
     }
 }

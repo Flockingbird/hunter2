@@ -35,7 +35,7 @@ use hunter2::vacancy::Vacancy;
 const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 
 #[derive(Debug)]
-enum Message {
+pub enum Message {
     Generic(String),
     Vacancy(Status),
     Term,
@@ -90,18 +90,18 @@ fn main() -> Result<(), ProcessingError> {
     }
 
     if cli_opts.follow {
-        tx.send(Message::Generic(String::from("📨 Listening for vacancies")))
-            .unwrap();
+        tx.send(Message::Generic("📨 Listening for vacancies".to_string()))?;
         let updates_thread = capture_updates(mastodon.clone(), tx.clone());
 
-        tx.send(Message::Generic(String::from(" 📨 Listening for notifications")))
-            .unwrap();
+        tx.send(Message::Generic(
+            "📨 Listening for notifications".to_string(),
+        ))?;
         let notifications_thread = capture_notifications(mastodon, tx);
 
         updates_thread.join().unwrap();
         notifications_thread.join().unwrap();
     } else {
-        tx.send(Message::Term).unwrap();
+        tx.send(Message::Term)?;
     }
 
     messages_thread.join().unwrap();
@@ -152,14 +152,14 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                         tx.send(Message::Vacancy(status)).unwrap();
                     }
                 }
-                Event::Notification(ref _notification) => { }
+                Event::Notification(ref _notification) => {}
                 Event::Delete(ref _id) => { /* .. */ }
                 Event::FiltersChanged => { /* .. */ }
             }
         }
     })
 }
- 
+
 fn capture_notifications(
     mastodon: elefren::Mastodon,
     tx: Sender<Message>,
