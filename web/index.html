@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="/css/vendor/materialdesignicons.min.css">
     <link rel="stylesheet" href="/css/application.css">
     <script src='https://cdn.jsdelivr.net/npm/meilisearch@latest/dist/bundles/meilisearch.umd.js'></script>
+
+    <script defer data-domain="search.flockingbird.social" src="https://plausible.io/js/script.outbound-links.manual.js"></script>
+
     <script charset="utf-8">
       const ignoredCommonTags = ['job', 'jobs', 'jobsearch', 'joboffer', 'hiring', 'vacancy', 'offredemploi', 'emploi', 'jobangebot', 'fedihire']; 
       const meiliSearchHost = 'https://meili.flockingbird.social';
@@ -19,6 +22,7 @@
       });
       const index = client.index('vacancies');
       const urlParams = new URLSearchParams(window.location.search);
+      window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }
 
       document.addEventListener('DOMContentLoaded', () => {
         (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
@@ -34,7 +38,18 @@
         } else {
           prefillDefault();
         }
+        plausible('pageview', { u: trackingUrl() });
       });
+      
+      const trackingUrl = function() {
+        const url = new URL(location.href)
+        const queryParams = new URLSearchParams(location.search)
+        let customUrl = url.protocol + "//" + url.hostname + url.pathname
+
+        const q = queryParams.get("q")
+        const tags = queryParams.getAll("tags")
+        return customUrl  + [q, tags.join(',')].filter(n => n).join("/")
+      }
 
       const urlFor = function({ query = null, offset = null, tags = [] } = {}) {
         let params = new URLSearchParams(urlParams);
@@ -405,8 +420,5 @@
     <template id="pager">
       <button class="button is-medium is-fullwidth pager">More results</button>
     </template>
-
-    <script defer data-domain="search.flockingbird.social" src="https://plausible.io/js/plausible.js"></script>
-    <script defer data-domain="search.flockingbird.social" src="https://plausible.io/js/script.outbound-links.js"></script>
   </body>
 </html>
