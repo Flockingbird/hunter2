@@ -15,11 +15,13 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
+mod cli;
 mod cli_options;
 mod error;
 mod hunter2;
 mod ports;
 
+use cli::tag_fetcher::TagFetcher;
 use cli_options::CliOptions;
 use error::ProcessingError;
 
@@ -80,13 +82,9 @@ fn main() -> Result<(), ProcessingError> {
     let messages_thread = handle_messages(rx, search_index_repository, mastodon.clone());
 
     if cli_opts.past {
-        for tag in job_tags_repository.tags() {
-            for status in mastodon.get_tagged_timeline(tag, false)? {
-                if has_job_related_tags(&status.tags, &job_tags_repository) {
-                    tx.send(Message::Vacancy(status)).unwrap();
-                }
-            }
-        }
+        TagFetcher::new(job_tags_repository.tags(), mastodon.clone(), tx.clone())
+            .run_once()
+            .expect("Fetching statuses for all job-tags");
     }
 
     if cli_opts.follow {
