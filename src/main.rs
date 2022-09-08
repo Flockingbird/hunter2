@@ -169,10 +169,16 @@ fn capture_notifications(
             match event {
                 Event::Update(ref _status) => { /* .. */ }
                 Event::Notification(notification) => {
-                    debug!("Recieved a notification: {:#?}", &notification.notification_type);
+                    debug!(
+                        "Recieved a notification: {:#?}",
+                        &notification.notification_type
+                    );
                     if let Some(notification_status) = &notification.status {
                         if has_indexme_request(&notification_status.content) {
-                            debug!("Notification has an indexme request: {}", &notification_status.content);
+                            debug!(
+                                "Notification has an indexme request: {}",
+                                &notification_status.content
+                            );
                             if let Some(status) = is_in_reply_to(&mastodon, &notification) {
                                 debug!("Notification is a reply to: {}", &status.id);
                                 tx.send(Message::Vacancy(status)).unwrap();
@@ -299,15 +305,13 @@ mod tests {
 
     #[test]
     fn test_notification_has_request_to_index_with_word() {
-        let content =
-            String::from("<p>indexthis<p>");
+        let content = String::from("<p>indexthis<p>");
         assert!(has_indexme_request(&content))
     }
 
     #[test]
     fn test_notification_has_request_to_index_with_tag() {
-        let content =
-            String::from("<p>please <a href=\"\">#indexthis</a>!<p>");
+        let content = String::from("<p>please <a href=\"\">#indexthis</a>!<p>");
         assert!(has_indexme_request(&content))
     }
 
