@@ -26,8 +26,8 @@ jobs:
         run: sudo apt-get update
       - name: Install yamllint
         run: sudo apt-get install -y yamllint
-      - name: Install cargo
-        run: sudo apt-get install -y cargo
+      - name: "Update to rust stable 2021"
+        run: rustup update
       - uses: actions/checkout@v3
       - name: Lint YAML
         run: yamllint ./.github/workflows/*.yml
@@ -40,12 +40,14 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
+            bot/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Lint Rust
         run: cargo check --verbose
+        working-directory: bot
       - name: Run tests
         run: cargo test --verbose
+        working-directory: bot
 
   build:
     needs: test
@@ -63,17 +65,18 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
+            bot/target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache Cargo Release Deps
         id: cache-cargo-release
         uses: actions/cache@v3
         with:
           path: |
-            target/
+            bot/target/
           key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
       - name: Build Release version
         run: cargo build --release --verbose
+        working-directory: bot
       - name: Archive Release
         uses: thedoctor0/zip-release@main
         with:
@@ -83,7 +86,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: hunter2
-          path: target/release/hunter2
+          path: bot/target/release/hunter2
       - uses: actions/upload-artifact@v3
         with:
           name: web.tar.gz
@@ -91,7 +94,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: job_tags.txt
-          path: job_tags.txt
+          path: bot/job_tags.txt
 
   deploy_binary:
     needs:
