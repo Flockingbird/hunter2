@@ -73,7 +73,7 @@ fn main() -> Result<(), ProcessingError> {
     };
     let mastodon = Mastodon::from(data);
 
-    let search_index_repository = SearchIndexRepository::new(cli_opts.meilisearch);
+    let search_index_repository = SearchIndexRepository::new();
     let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE").unwrap());
     env_logger::init();
 
@@ -152,9 +152,4 @@ async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
         }
         Ok(())
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

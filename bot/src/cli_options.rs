@@ -7,7 +7,6 @@ pub struct CliOptions {
     pub register: bool,
     pub follow: bool,
     pub past: bool,
-    pub meilisearch: bool,
     pub delete: Option<String>,
 
     program: String,
@@ -23,7 +22,6 @@ impl CliOptions {
         opts.optflag("h", "help", "print this help menu");
         opts.optflag("f", "follow", "follow live updates.");
         opts.optflag("p", "past", "fetch past updates.");
-        opts.optflag("m", "meili", "output to meilisearch");
         opts.optflag("r", "register", "register hunter2 with your instance.");
         opts.optopt("d", "delete", "remove an entry from the index", "TOOT_URL");
 
@@ -35,7 +33,6 @@ impl CliOptions {
         let help = matches.opt_present("h");
         let register = matches.opt_present("r");
 
-        let meilisearch = matches.opt_present("m");
         let past = matches.opt_present("p");
         let follow = matches.opt_present("f");
 
@@ -43,7 +40,6 @@ impl CliOptions {
 
         Self {
             program,
-            meilisearch,
             past,
             follow,
             help,
