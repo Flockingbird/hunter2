@@ -1,5 +1,4 @@
 use assert_cmd::prelude::*;
-use dotenv;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use meilisearch_sdk::search::SearchResults;
@@ -23,9 +22,8 @@ fn env_vars_not_set() {
     cmd.env_remove("BASE");
     cmd.env_remove("TAG_FILE");
 
-    cmd.assert().failure().stderr(predicate::str::contains(
-        "Failed to load env var. Did you export .env?",
-    ));
+    cmd.assert().failure().stderr(predicate::str::contains("NotPresent"));
+    cmd.assert().failure().stderr(predicate::str::contains("Did you export .env?"));
 }
 
 #[tokio::test]

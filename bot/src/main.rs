@@ -3,11 +3,8 @@ use elefren::helpers::env;
 use elefren::Mastodon;
 use elefren::MastodonClient;
 
-use futures::executor::block_on;
-use log::{debug, error, info};
-use meilisearch_sdk::client::Client;
-
 use core::fmt::Debug;
+use log::{debug, error, info};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -28,7 +25,6 @@ use ports::job_tags_repository::{JobTagsFileRepository, JobTagsRepository};
 use ports::search_index_repository::SearchIndexRepository;
 
 use hunter2::may_index::may_index;
-use hunter2::vacancy::Vacancy;
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -44,6 +40,8 @@ pub enum Message {
 
 fn main() -> Result<(), ProcessingError> {
     let cli_opts = CliOptions::new();
+    let search_index_repository = SearchIndexRepository::new();
+    let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE")?);
 
     // print help when requested
     if cli_opts.help {
@@ -59,22 +57,14 @@ fn main() -> Result<(), ProcessingError> {
 
     // Delete a toot from index
     if let Some(toot_uri) = cli_opts.delete {
-        return block_on(async move {
-            println!("Deleting {}", toot_uri);
-            return delete(toot_uri).await;
-        });
+        println!("Deleting {}", toot_uri);
+        return search_index_repository
+            .delete_all(toot_uri)
+            .map_err(|e| e.into());
     }
 
-    let data = match env::from_env() {
-        Ok(data) => data,
-        Err(err) => {
-            panic!("Failed to load env var. Did you export .env?: {}", err)
-        }
-    };
-    let mastodon = Mastodon::from(data);
+    let mastodon = Mastodon::from(env::from_env()?);
 
-    let search_index_repository = SearchIndexRepository::new();
-    let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE").unwrap());
     env_logger::init();
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
@@ -126,30 +116,4 @@ fn handle_messages(
         }
         thread::sleep(THREAD_SLEEP_DURATION);
     })
-}
-
-async fn delete(toot_uri: String) -> Result<(), ProcessingError> {
-    let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-    let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
-    let client = Client::new(uri.as_str(), key.as_str());
-    let index = client.index("vacancies");
-
-    let results = index
-        .search()
-        .with_filter(format!("url = '{}'", toot_uri).as_str())
-        .execute::<Vacancy>()
-        .await?;
-
-    if results.nb_hits == 0 {
-        Err(ProcessingError::new(format!(
-            "could not find a vacancy with url: {}",
-            toot_uri
-        )))
-    } else {
-        for hit in results.hits.iter() {
-            let task = index.delete_document(&hit.result.id).await?;
-            task.wait_for_completion(&client, None, None).await?;
-        }
-        Ok(())
-    }
 }
