@@ -101,7 +101,14 @@ fn capture_notifications(
                         );
                         if let Some(status) = is_in_reply_to(&mastodon, &notification) {
                             debug!("Notification is a reply to: {}", &status.id);
-                            tx.send(Message::Vacancy(status)).unwrap();
+                            tx.send(Message::Vacancy(status.clone())).unwrap();
+                            let reply = StatusBuilder::new()
+                                .status("Thanks for the request! The job posting can now be found at https://search.flockingbird.social/")
+                                .in_reply_to(&status.id)
+                                .build()
+                                .unwrap();
+                            tx.send(Message::NewMessage(reply))
+                                .expect("Attempt to send a new message");
                         } else {
                             debug!("Notification is not a reply");
                         }
@@ -110,6 +117,13 @@ fn capture_notifications(
                             "Notification has no indexme request: {}",
                             &notification_status.content
                         );
+                        let reply = StatusBuilder::new()
+                            .status("I did not understand the request. Did you include the phrase \"index this\"?")
+                            .in_reply_to(&notification_status.id)
+                            .build()
+                            .unwrap();
+                        tx.send(Message::NewMessage(reply))
+                            .expect("Attempt to send a new message");
                     }
                 }
             }

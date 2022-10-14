@@ -2,6 +2,7 @@ use elefren::entities::status::Status;
 use elefren::helpers::env;
 use elefren::Mastodon;
 use elefren::MastodonClient;
+use elefren::NewStatus;
 
 use core::fmt::Debug;
 use log::{debug, error, info};
@@ -34,6 +35,7 @@ const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 #[derive(Debug)]
 pub enum Message {
     Generic(String),
+    NewMessage(NewStatus),
     Vacancy(Status),
     Term,
 }
@@ -108,6 +110,10 @@ fn handle_messages(
                     }
                 }
                 Message::Generic(msg) => info!("{}", msg),
+                Message::NewMessage(new_status) => {
+                    debug!("sending new status");
+                    client.new_status(new_status).expect("sending new message");
+                }
                 Message::Term => {
                     debug!("closing message handler");
                     break;

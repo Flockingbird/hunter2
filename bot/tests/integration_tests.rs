@@ -22,8 +22,12 @@ fn env_vars_not_set() {
     cmd.env_remove("BASE");
     cmd.env_remove("TAG_FILE");
 
-    cmd.assert().failure().stderr(predicate::str::contains("NotPresent"));
-    cmd.assert().failure().stderr(predicate::str::contains("Did you export .env?"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("NotPresent"));
+    cmd.assert()
+        .failure()
+        .stderr(predicate::str::contains("Did you export .env?"));
 }
 
 #[tokio::test]
