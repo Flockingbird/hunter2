@@ -95,7 +95,7 @@
             setHeading(`Job openings for ${result.query}`);
           }
 
-          if (result.facetsDistribution) {
+          if (result.facetDistribution) {
             const tags = extractFacetTags(result)
               .filter(notCommonName)
               .filter(notSpammy)
@@ -117,7 +117,7 @@
         var options =  {
           offset: offset,
           limit: perPage,
-          facetsDistribution: ['tags.name']
+          facets: ['tags.name']
         }
 
         const tags = getActiveTags();
@@ -194,7 +194,7 @@
       };
 
       const extractFacetTags = function(result) {
-        const filterTags = result.facetsDistribution['tags.name'];
+        const filterTags = result.facetDistribution['tags.name'];
         return Object.keys(filterTags)
           .map((key) => { return { 'name': key, 'count': filterTags[key] }; })
       };
