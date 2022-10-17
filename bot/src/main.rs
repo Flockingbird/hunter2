@@ -53,7 +53,11 @@ impl Display for Message {
 
 fn main() -> Result<(), ProcessingError> {
     let cli_opts = CliOptions::new();
-    let search_index_repository = SearchIndexRepository::new();
+
+    let search_index_repository = SearchIndexRepository::new(
+        std::env::var("MEILI_URI")?,
+        std::env::var("MEILI_ADMIN_KEY")?,
+    );
     let job_tags_repository = JobTagsFileRepository::new(std::env::var("TAG_FILE")?);
 
     // print help when requested
