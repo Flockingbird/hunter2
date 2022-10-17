@@ -1,4 +1,4 @@
-use reqwest::Client;
+use reqwest::blocking::Client;
 use scraper::{Html, Selector};
 use std::io::Read;
 

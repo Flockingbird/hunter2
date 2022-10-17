@@ -165,6 +165,7 @@ mod tests {
         let tags = vec![Tag {
             url: "".to_string(),
             name: "jobs".to_string(),
+            history: None,
         }];
         assert!(has_job_related_tags(&tags, &job_tags_repository()))
     }
@@ -175,10 +176,12 @@ mod tests {
             Tag {
                 url: "".to_string(),
                 name: "jobs".to_string(),
+                history: None,
             },
             Tag {
                 url: "".to_string(),
                 name: "steve".to_string(),
+                history: None,
             },
         ];
         assert!(has_job_related_tags(&tags, &job_tags_repository()))
@@ -195,6 +198,7 @@ mod tests {
         let tags = vec![Tag {
             url: "".to_string(),
             name: "steve".to_string(),
+            history: None,
         }];
         assert!(!has_job_related_tags(&tags, &job_tags_repository()))
     }
