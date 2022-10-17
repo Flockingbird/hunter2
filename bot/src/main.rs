@@ -45,7 +45,7 @@ impl Display for Message {
         match self {
             Message::Generic(content) => write!(f, "Generic: {}", content),
             Message::NewMessage(_) => write!(f, "NewMessage"),
-            Message::Vacancy(status) => write!(f, "Vacancy: {}", status.uri),
+            Message::Vacancy(status) => write!(f, "Vacancy: {} - {}", status.uri, status.created_at),
             Message::Term => write!(f, "Term"),
         }
     }
