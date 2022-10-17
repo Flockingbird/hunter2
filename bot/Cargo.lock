@@ -1102,7 +1102,6 @@ dependencies = [
  "openssl",
  "predicates",
  "regex",
- "reqwest 0.9.24",
  "scraper",
  "serde",
  "serde_json",

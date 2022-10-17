@@ -15,7 +15,6 @@ chrono = "0.4"
 log = "0.4"
 meilisearch-sdk = "0.20.1"
 regex = "1"
-reqwest = "0.9" # Version should be compat with the one webfinger uses.
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 webfinger = "0.5"

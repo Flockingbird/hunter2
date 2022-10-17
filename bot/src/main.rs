@@ -6,6 +6,7 @@ use elefren::NewStatus;
 
 use core::fmt::Debug;
 use log::{debug, error, info};
+use std::fmt::Display;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
@@ -38,6 +39,16 @@ pub enum Message {
     NewMessage(NewStatus),
     Vacancy(Status),
     Term,
+}
+impl Display for Message {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Message::Generic(content) => write!(f, "Generic: {}", content),
+            Message::NewMessage(_) => write!(f, "NewMessage"),
+            Message::Vacancy(status) => write!(f, "Vacancy: {}", status.uri),
+            Message::Term => write!(f, "Term"),
+        }
+    }
 }
 
 fn main() -> Result<(), ProcessingError> {
@@ -97,7 +108,7 @@ fn handle_messages(
     debug!("opening message handler");
     thread::spawn(move || loop {
         if let Ok(received) = rx.try_recv() {
-            info!("Handling: {:#?}", received);
+            info!("Handling: {}", received);
             match received {
                 Message::Vacancy(status) => {
                     if may_index(&status.account.url) {
