@@ -2,7 +2,6 @@ use assert_cmd::prelude::*;
 use meilisearch_sdk::client::Client;
 use meilisearch_sdk::indexes::Index;
 use meilisearch_sdk::search::SearchResults;
-use meilisearch_sdk::tasks::Task;
 use predicates::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -33,7 +32,7 @@ fn env_vars_not_set() {
 #[tokio::test]
 async fn delete_from_index() {
     let client = given_a_meilisearch_client();
-    let index = given_a_clean_index(&client).await;
+    let index = given_a_clean_index().await;
     given_a_vacancy_in_index(
         &client,
         &index,
@@ -61,14 +60,23 @@ async fn delete_from_index() {
 
 fn given_a_meilisearch_client() -> Client {
     dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
-    let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-    let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+    let uri = dotenv::var("MEILI_URI").expect("MEILI_URI");
+    let key = dotenv::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
+
     Client::new(uri.as_str(), key)
 }
 
-async fn given_a_clean_index(client: &Client) -> Index {
+async fn given_a_clean_index() -> Index {
+    dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
+    let uri = dotenv::var("MEILI_URI").expect("MEILI_URI");
+    let key = dotenv::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
+
+    println!("meili: {} with {}", uri, key);
+
+    let client = Client::new(uri.as_str(), key);
+
     let task = client.create_index("vacancies", Some("id")).await.unwrap();
-    task.wait_for_completion(client, None, None).await.unwrap();
+    task.wait_for_completion(&client, None, None).await.unwrap();
 
     let vacancies = client.index("vacancies");
     let filterable_attributes = ["tags", "language", "url"];
@@ -77,8 +85,8 @@ async fn given_a_clean_index(client: &Client) -> Index {
         .await
         .unwrap();
 
-    let task: Task = vacancies.delete_all_documents().await.unwrap();
-    task.wait_for_completion(client, None, None).await.unwrap();
+    let task = vacancies.delete_all_documents().await.unwrap();
+    task.wait_for_completion(&client, None, None).await.unwrap();
 
     vacancies
 }

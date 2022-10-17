@@ -15,7 +15,7 @@ pub struct SearchIndexRepository {
 impl SearchIndexRepository {
     pub(crate) fn new() -> Self {
         let uri = std::env::var("MEILI_URI").expect("MEILI_URI");
-        let key = std::env::var("MEILI_MASTER_KEY").expect("MEILI_MASTER_KEY");
+        let key = std::env::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
         let client = Client::new(uri.as_str(), key.as_str());
         Self { client }
     }

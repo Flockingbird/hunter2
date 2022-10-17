@@ -17,7 +17,7 @@ jobs:
 
     services:
       meilisearch:
-        image: getmeili/meilisearch:v0.27.2
+        image: getmeili/meilisearch:v0.29.0
         ports:
           - 7701:7700
 

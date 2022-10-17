@@ -16,7 +16,7 @@ deploy:
 	rsync job_tags.txt deploy@$(DEPLOY_HOST):/u/apps/hunter2/shared/job_tags.txt
 
 meili:
-	docker run --name hunter2_meili_dev --network $(DOCKER_NETWORK) --publish 7700:7700 --volume $(DIR)/dev.ms:/data.ms --rm --detach --env=MEILI_MASTER_KEY="" -d getmeili/meilisearch:v0.29.0
+	docker run --name hunter2_meili_dev --network $(DOCKER_NETWORK) --publish 7700:7700 --volume $(DIR)/dev.ms:/data.ms --rm --detach --env=MEILI_MASTER_KEY="slagboomwicketsovjets7_" -d getmeili/meilisearch:v0.29.0
 	docker run --name hunter2_meili_test --network $(DOCKER_NETWORK) --publish 7701:7700 --volume $(DIR)/test.ms:/data.ms --rm --detach --env=MEILI_MASTER_KEY="m3i7i3" -d getmeili/meilisearch:v0.29.0
 
 release-tag:
