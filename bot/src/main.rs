@@ -115,8 +115,8 @@ fn handle_messages(
                         debug!("Handling vacancy: {:#?}", status);
                         search_index_repository.add(&status.clone().into());
                         client.favourite(&status.id).map_or_else(
-                            |_| info!("Favourited {}", &status.id),
-                            |err| error!("Could not favourite {}: {:#?}", &status.id, err),
+                            |_| info!("Favourited {}", &status.uri),
+                            |_| error!("Could not favourite {}", &status.uri),
                         );
                     }
                 }
