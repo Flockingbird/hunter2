@@ -35,7 +35,6 @@ const THREAD_SLEEP_DURATION: Duration = Duration::from_millis(5000);
 
 #[derive(Debug)]
 pub enum Message {
-    Generic(String),
     NewMessage(NewStatus),
     Vacancy(Status),
     Term,
@@ -43,7 +42,6 @@ pub enum Message {
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Message::Generic(content) => write!(f, "Generic: {}", content),
             Message::NewMessage(_) => write!(f, "NewMessage"),
             Message::Vacancy(status) => {
                 write!(f, "Vacancy: {} - {}", status.uri, status.created_at)
@@ -124,7 +122,6 @@ fn handle_messages(
                         );
                     }
                 }
-                Message::Generic(msg) => info!("{}", msg),
                 Message::NewMessage(new_status) => {
                     debug!("sending new status");
                     client.new_status(new_status).expect("sending new message");

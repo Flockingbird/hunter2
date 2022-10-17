@@ -7,7 +7,7 @@ use elefren::entities::status::Status;
 use elefren::prelude::*;
 use elefren::Mastodon;
 use lazy_static::lazy_static;
-use log::debug;
+use log::{ debug, info };
 use regex::Regex;
 use std::sync::mpsc::Sender;
 use std::thread;
@@ -27,8 +27,7 @@ impl StreamClient for PublicStreamClient {
         Self { mastodon, tx }
     }
     fn run(&self) -> Result<thread::JoinHandle<()>, ProcessingError> {
-        self.tx
-            .send(Message::Generic("📨 Listening for vacancies".to_string()))?;
+        info!("📨 Listening for vacancies");
         Ok(capture_updates(
             self.mastodon.to_owned(),
             self.tx.to_owned(),
@@ -47,9 +46,7 @@ impl StreamClient for UserStreamClient {
     }
 
     fn run(&self) -> Result<thread::JoinHandle<()>, ProcessingError> {
-        self.tx.send(Message::Generic(
-            "📨 Listening for notifications".to_string(),
-        ))?;
+        info!("📨 Listening for notifications");
         Ok(capture_notifications(
             self.mastodon.to_owned(),
             self.tx.to_owned(),
