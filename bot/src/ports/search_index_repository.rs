@@ -33,6 +33,16 @@ impl SearchIndexRepository {
         });
     }
 
+    pub(crate) fn exists(&self, id: &str) -> bool {
+        block_on(async move {
+            self.client
+                .index("vacancies")
+                .get_document::<Vacancy>(id)
+                .await
+                .is_ok()
+        })
+    }
+
     pub(crate) fn delete_all(&self, toot_uri: String) -> Result<(), Error> {
         block_on(async move {
             let results = &self.get_all(toot_uri).await?;

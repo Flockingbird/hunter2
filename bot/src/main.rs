@@ -45,7 +45,9 @@ impl Display for Message {
         match self {
             Message::Generic(content) => write!(f, "Generic: {}", content),
             Message::NewMessage(_) => write!(f, "NewMessage"),
-            Message::Vacancy(status) => write!(f, "Vacancy: {} - {}", status.uri, status.created_at),
+            Message::Vacancy(status) => {
+                write!(f, "Vacancy: {} - {}", status.uri, status.created_at)
+            }
             Message::Term => write!(f, "Term"),
         }
     }
@@ -111,7 +113,9 @@ fn handle_messages(
             info!("Handling: {}", received);
             match received {
                 Message::Vacancy(status) => {
-                    if may_index(&status.account.url) {
+                    if search_index_repository.exists(&status.id) {
+                        info!("Skipping existing vacancy: {}", status.uri);
+                    } else if may_index(&status.account.url) {
                         debug!("Handling vacancy: {:#?}", status);
                         search_index_repository.add(&status.clone().into());
                         client.favourite(&status.id).map_or_else(
