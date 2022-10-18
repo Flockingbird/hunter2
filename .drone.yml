@@ -20,9 +20,10 @@ steps:
     commands:
       - apt-get update
       - apt-get install -y yamllint
-      - yamllint ./.github/workflows/*.yml
-      - cd bot && cargo check --verbose
-      - cd bot && cargo test --verbose
+      - yamllint ./.drone.yml
+      - cd bot
+      - cargo check --verbose
+      - cargo test --verbose
 
   - name: build
     image: rust:latest
