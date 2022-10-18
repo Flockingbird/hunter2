@@ -18,6 +18,7 @@ steps:
       MEILI_ADMIN_KEY: "75f9a9c8fd10f27032db9b0982142b23f1fc57cbd48ae464e69e85a211d47352"  # yamllint disable-line rule:line-length
       TAG_FILE: "./job_tags.txt"
     commands:
+      - curl http://meilisearch:7700/keys -H "Authorization: Bearer m3i7i3"
       - apt-get update
       - apt-get install -y yamllint
       - yamllint ./.drone.yml
@@ -31,7 +32,8 @@ steps:
       - name: target
         path: /target
     commands:
-      - cd bot && cargo build --release --verbose --target-path /target
+      - cd bot
+      - cargo build --release --verbose --target-path /target
 
   - name: deploy-bot
     image: drillster/drone-rsync
