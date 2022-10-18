@@ -3,15 +3,15 @@ kind: pipeline
 name: CI
 
 services:
-  meilisearch:
+  - name: meilisearch:
     image: getmeili/meilisearch:v0.29.0
-    ports:
-      - 7701:7700
 
 steps:
   - name: test
     image: rust:latest-bullseye
     environment:
+      MEILI_HTTP_ADDR: "meilisearch:7700"
+      MEILI_URI: "http://meilisearch:7700"
       TAG_FILE: "./job_tags.txt"
     commands:
       - sudo apt-get update
