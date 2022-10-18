@@ -21,7 +21,7 @@ steps:
       - apt-get update
       - apt-get install -y yamllint jq
       - yamllint ./.drone.yml
-      - 'export MEILI_ADMIN_KEY = $(curl http://meilisearch:7700/keys -H "Authorization: Bearer m3i7i3" | jq ".results[] | select(.name == \"Default Admin API Key\") | .key")'  # yamllint disable-line rule:line-length
+      - 'export MEILI_ADMIN_KEY=$(curl http://meilisearch:7700/keys -H "Authorization: Bearer m3i7i3" | jq ".results[] | select(.name == \"Default Admin API Key\") | .key")'  # yamllint disable-line rule:line-length
       - cd bot
       - cargo check --verbose
       - cargo test --verbose
