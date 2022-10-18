@@ -18,8 +18,7 @@ steps:
       MEILI_ADMIN_KEY: "75f9a9c8fd10f27032db9b0982142b23f1fc57cbd48ae464e69e85a211d47352"
       TAG_FILE: "./job_tags.txt"
     commands:
-      - sudo apt-get update
-      - sudo apt-get install -y yamllint
+      - apt-get install -y yamllint
       - yamllint ./.github/workflows/*.yml
       - cd bot && cargo check --verbose
       - cd bot && cargo test --verbose
