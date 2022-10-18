@@ -10,7 +10,7 @@ services:
 
 steps:
   - name: test
-    image: rust:latest-bullseye
+    image: rust:latest
     environment:
       MEILI_HTTP_ADDR: "meilisearch:7700"
       MEILI_URI: "http://meilisearch:7700"
@@ -25,7 +25,7 @@ steps:
       - cd bot && cargo test --verbose
 
   - name: build
-    image: rust:latest-bullseye
+    image: rust:latest
     volumes:
       - name: target
         path: /target
