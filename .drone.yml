@@ -1,0 +1,99 @@
+---
+kind: pipeline
+name: CI
+
+services:
+  - name: meilisearch
+    image: getmeili/meilisearch:v0.29.0
+    environment:
+      MEILI_MASTER_KEY: "m3i7i3"
+
+volumes:
+  - name: target
+    temp: {}
+
+steps:
+  - name: test
+    image: rust:latest
+    environment:
+      MEILI_HTTP_ADDR: "meilisearch:7700"
+      MEILI_URI: "http://meilisearch:7700"
+      MEILI_MASTER_KEY: "m3i7i3"
+      TAG_FILE: "./job_tags.txt"
+    commands:
+      - apt-get update
+      - apt-get install -y yamllint jq
+      - 'export MEILI_ADMIN_KEY=$(./admin_key.sh)'
+      - yamllint ./.drone.yml
+      - cd bot
+      - cargo check --verbose --target-dir /target
+      - cargo test --verbose --target-dir /target
+    volumes:
+      - name: target
+        path: /target
+
+  - name: build
+    image: rust:latest
+    volumes:
+      - name: target
+        path: /target
+    commands:
+      - cd bot
+      - cargo build --release --verbose --target-dir /target
+      - ls -l /target/
+      - ls -l /target/release
+    depends_on:
+      - test
+
+  - name: deploy-bot
+    image: drillster/drone-rsync
+    volumes:
+      - name: target
+        path: /target
+    settings:
+      hosts:
+        from_secret: DEPLOY_HOSTS
+      user:
+        from_secret: DEPLOY_USER
+      key:
+        from_secret: DEPLOY_KEY
+      source: /target/release/
+      target: /u/apps/hunter2/
+      include: ["hunter2"]
+      script:
+        - chmod +x /usr/local/bin/hunter2
+        - sudo systemctl restart hunter2.service
+    depends_on:
+      - test
+      - build
+
+  - name: deploy-tagfile
+    image: drillster/drone-rsync
+    settings:
+      hosts:
+        from_secret: DEPLOY_HOSTS
+      user:
+        from_secret: DEPLOY_USER
+      key:
+        from_secret: DEPLOY_KEY
+      source: ./bot/
+      target: /u/apps/hunter2/
+      include: ["job_tags.txt"]
+      script:
+        - sudo systemctl restart hunter2.service
+    depends_on:
+      - test
+
+  - name: deploy-web
+    image: drillster/drone-rsync
+    settings:
+      hosts:
+        from_secret: DEPLOY_HOSTS
+      user:
+        from_secret: DEPLOY_USER
+      key:
+        from_secret: DEPLOY_KEY
+      source: ./web/
+      target: /u/apps/flockingbird_jobsearch/current/public/
+    depends_on:
+      - test
