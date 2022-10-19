@@ -9,8 +9,8 @@ services:
       MEILI_MASTER_KEY: "m3i7i3"
 
 volumes:
-- name: target
-  temp: {}
+  - name: target
+    temp: {}
 
 steps:
   - name: test
