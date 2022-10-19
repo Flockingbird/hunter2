@@ -61,7 +61,7 @@ steps:
       target: /u/apps/hunter2/
       include: ["hunter2"]
       script:
-        - ssh ${DEPLOYTO} chmod +x /usr/local/bin/hunter2
+        - chmod +x /usr/local/bin/hunter2
         - sudo systemctl restart hunter2.service
     depends_on:
       - test
