@@ -36,6 +36,9 @@ steps:
 
   - name: deploy-bot
     image: drillster/drone-rsync
+    volumes:
+      - name: target
+        path: /target
     settings:
       hosts:
         from_secret: DEPLOY_HOSTS
@@ -49,6 +52,9 @@ steps:
       script:
         - ssh ${DEPLOYTO} chmod +x /usr/local/bin/hunter2
         - sudo systemctl restart hunter2.service
+    depends_on:
+      - test
+      - build
 
   - name: deploy-tagfile
     image: drillster/drone-rsync
@@ -64,6 +70,8 @@ steps:
       include: ["job_tags.txt"]
       script:
         - sudo systemctl restart hunter2.service
+    depends_on:
+      - test
 
   - name: deploy-web
     image: drillster/drone-rsync
@@ -76,3 +84,5 @@ steps:
         from_secret: DEPLOY_KEY
       source: ./web/
       target: /u/apps/flockingbird_jobsearch/current/public/
+    depends_on:
+      - test
