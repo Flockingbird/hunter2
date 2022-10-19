@@ -10,8 +10,7 @@ services:
 
 volumes:
 - name: target
-  host:
-    path: /var/lib/cache
+  temp: {}
 
 steps:
   - name: test
