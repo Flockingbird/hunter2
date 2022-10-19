@@ -32,7 +32,7 @@ steps:
         path: /target
     commands:
       - cd bot
-      - cargo build --release --verbose --target-path /target
+      - cargo build --release --verbose --target-dir /target
 
   - name: deploy-bot
     image: drillster/drone-rsync
