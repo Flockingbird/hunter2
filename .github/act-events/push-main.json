@@ -1,7 +1,0 @@
-{
-  "push": {
-    "head": {
-      "ref": "refs/heads/main"
-    }
-  }
-}
