@@ -33,6 +33,10 @@ steps:
     commands:
       - cd bot
       - cargo build --release --verbose --target-dir /target
+      - ls -l /target/
+      - ls -l /target/release
+    depends_on:
+      - test
 
   - name: deploy-bot
     image: drillster/drone-rsync
