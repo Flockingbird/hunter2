@@ -15,13 +15,12 @@ steps:
       MEILI_HTTP_ADDR: "meilisearch:7700"
       MEILI_URI: "http://meilisearch:7700"
       MEILI_MASTER_KEY: "m3i7i3"
-      MEILI_ADMIN_KEY: "75f9a9c8fd10f27032db9b0982142b23f1fc57cbd48ae464e69e85a211d47352"  # yamllint disable-line rule:line-length
       TAG_FILE: "./job_tags.txt"
     commands:
       - apt-get update
       - apt-get install -y yamllint jq
+      - 'export MEILI_ADMIN_KEY=$(./admin_key.sh)'
       - yamllint ./.drone.yml
-      - 'export MEILI_ADMIN_KEY=$(curl http://meilisearch:7700/keys -H "Authorization: Bearer m3i7i3" | jq ".results[] | select(.name == \"Default Admin API Key\") | .key")'  # yamllint disable-line rule:line-length
       - cd bot
       - cargo check --verbose
       - cargo test --verbose
