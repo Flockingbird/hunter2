@@ -44,6 +44,11 @@ steps:
       - ls -l /target/release
     depends_on:
       - test
+    when:
+      branch:
+        - main
+      repo:
+        - Flockingbird/hunter2
 
   - name: deploy-bot
     image: drillster/drone-rsync
@@ -66,6 +71,11 @@ steps:
     depends_on:
       - test
       - build
+    when:
+      branch:
+        - main
+      repo:
+        - Flockingbird/hunter2
 
   - name: deploy-tagfile
     image: drillster/drone-rsync
@@ -83,6 +93,11 @@ steps:
         - sudo systemctl restart hunter2.service
     depends_on:
       - test
+    when:
+      branch:
+        - main
+      repo:
+        - Flockingbird/hunter2
 
   - name: deploy-web
     image: drillster/drone-rsync
@@ -97,3 +112,8 @@ steps:
       target: /u/apps/flockingbird_jobsearch/current/public/
     depends_on:
       - test
+    when:
+      branch:
+        - main
+      repo:
+        - Flockingbird/hunter2
