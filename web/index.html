@@ -14,7 +14,7 @@
     <script charset="utf-8">
       const ignoredCommonTags = ['job', 'jobs', 'jobsearch', 'joboffer', 'hiring', 'vacancy', 'offredemploi', 'emploi', 'jobangebot', 'fedihire']; 
       const meiliSearchHost = 'https://meili.flockingbird.social';
-      const meiliSearchPubApiKey = '713ed1785eebecfc8f7f3adac95d5ef2bb7dace6d7c3de345a8f40fdf56540e7'
+      const meiliSearchPubApiKey = 'a5f6c0906a51401d25e1bc07f9c6eae7bba6fceed0a134e45fe8003092decd90'
       const perPage = 20;
       const client = new MeiliSearch({
         host: meiliSearchHost,
@@ -61,7 +61,6 @@
       const getActiveTags = function() {
         return (urlParams.getAll('tags') || []);
       };
-
       const prefillDefault = function() {
         const defaultAmount = 10;
         const defaultSort = 'created_at_ts:desc';
@@ -72,6 +71,19 @@
             insertHits(result.hits);
           });
       };
+
+      const countDocuments = function() {
+        return index.getStats().then((statsResult) => {
+          return new Promise(function(resolve, reject) {
+            resolve(statsResult.numberOfDocuments);
+          });
+        })
+      };
+
+      const renderDocumentsCount = function(count) {
+        document.getElementById('document-count').innerText = count;
+      };
+
 
       const handleNextPage = function(result, offset) {
         removePager();
@@ -352,7 +364,7 @@
 
             <section class="mt-6 card is-brand-shadowed">
               <div class="card-content">
-                <h1 class="title">Your vacancy here?</h1>
+                <h1 class="title">We have <span id="document-count" class="has-text-weight-normal">…loading…</span> vacancies. Add yours</h1>
                 <p class="content">
                 Just use the tag <strong>#vacancy</strong> in your update and we'll pick it up the moment we see it on the fediverse.
                 </p>
