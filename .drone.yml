@@ -8,6 +8,11 @@ services:
     environment:
       MEILI_MASTER_KEY: "m3i7i3"
 
+volumes:
+- name: target
+  host:
+    path: /var/lib/cache
+
 steps:
   - name: test
     image: rust:latest
@@ -22,8 +27,11 @@ steps:
       - 'export MEILI_ADMIN_KEY=$(./admin_key.sh)'
       - yamllint ./.drone.yml
       - cd bot
-      - cargo check --verbose
-      - cargo test --verbose
+      - cargo check --verbose --target-dir /target
+      - cargo test --verbose --target-dir /target
+    volumes:
+      - name: target
+        path: /target
 
   - name: build
     image: rust:latest
