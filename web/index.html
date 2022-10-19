@@ -25,19 +25,12 @@
       window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }
 
       document.addEventListener('DOMContentLoaded', () => {
-        (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
-          var $notification = $delete.parentNode;
-
-          $delete.addEventListener('click', () => {
-            $notification.parentNode.removeChild($notification);
-          });
-        });
-
         if (urlParams.get('q')) {
           doSearch().then(handleSearchResponse);
         } else {
           prefillDefault();
         }
+        countDocuments().then(renderDocumentsCount);
         plausible('pageview', { u: trackingUrl() });
       });
       
