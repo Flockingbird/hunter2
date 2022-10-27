@@ -7,7 +7,7 @@ use elefren::entities::status::Status;
 use elefren::prelude::*;
 use elefren::Mastodon;
 use lazy_static::lazy_static;
-use log::{ debug, info };
+use log::{debug, info};
 use regex::Regex;
 use std::sync::mpsc::Sender;
 use std::thread;
@@ -99,8 +99,9 @@ fn capture_notifications(
                         if let Some(status) = is_in_reply_to(&mastodon, &notification) {
                             debug!("Notification is a reply to: {}", &status.id);
                             tx.send(Message::Vacancy(status.clone())).unwrap();
+                            let message = format!("Thanks for the request, @{}! The job posting can now be found at https://search.flockingbird.social/", notification.account.username);
                             let reply = StatusBuilder::new()
-                                .status("Thanks for the request! The job posting can now be found at https://search.flockingbird.social/")
+                                .status(message)
                                 .in_reply_to(&status.id)
                                 .build()
                                 .unwrap();
