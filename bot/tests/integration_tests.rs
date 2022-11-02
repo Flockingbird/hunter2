@@ -58,21 +58,6 @@ async fn delete_from_index() {
     assert!(results.hits.len() == 0);
 }
 
-#[tokio::test]
-async fn add_to_index() {
-    given_a_meilisearch_client();
-    let index = given_a_clean_index().await;
-
-    let mut cmd = Command::cargo_bin("hunter2").unwrap();
-    cmd.arg("--add")
-        .arg("https://example.com/@foo@example.com/1337");
-
-    cmd.assert().success();
-
-    let results = when_searched_for(&index, "hiring").await;
-    assert!(results.hits.len() == 1);
-}
-
 fn given_a_meilisearch_client() -> Client {
     dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
     let uri = dotenv::var("MEILI_URI").expect("MEILI_URI");
