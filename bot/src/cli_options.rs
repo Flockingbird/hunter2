@@ -8,6 +8,7 @@ pub struct CliOptions {
     pub follow: bool,
     pub past: bool,
     pub delete: Option<String>,
+    pub add: Option<String>,
 
     program: String,
     opts: Options,
@@ -24,6 +25,7 @@ impl CliOptions {
         opts.optflag("p", "past", "fetch past updates.");
         opts.optflag("r", "register", "register hunter2 with your instance.");
         opts.optopt("d", "delete", "remove an entry from the index", "TOOT_URL");
+        opts.optopt("a", "add", "add an entry to the index", "TOOT_URL");
 
         let matches = match opts.parse(&args[1..]) {
             Ok(m) => m,
@@ -37,6 +39,7 @@ impl CliOptions {
         let follow = matches.opt_present("f");
 
         let delete = matches.opt_str("d");
+        let add = matches.opt_str("a");
 
         Self {
             program,
@@ -45,6 +48,7 @@ impl CliOptions {
             help,
             register,
             delete,
+            add,
             opts,
         }
     }

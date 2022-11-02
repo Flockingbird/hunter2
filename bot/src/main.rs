@@ -82,6 +82,13 @@ fn main() -> Result<(), ProcessingError> {
 
     let mastodon = Mastodon::from(env::from_env()?);
 
+    if let Some(toot_uri) = cli_opts.add {
+        println!("Adding {}", toot_uri);
+        let id = id_from_uri(toot_uri).expect("Attempt to extract an ID from the URI");
+        let vacancy = mastodon.get_status(&id).unwrap().into();
+        search_index_repository.add(&vacancy);
+    }
+
     env_logger::init();
 
     let (tx, rx): (Sender<Message>, Receiver<Message>) = mpsc::channel();
@@ -138,4 +145,40 @@ fn handle_messages(
         }
         thread::sleep(THREAD_SLEEP_DURATION);
     })
+}
+
+fn id_from_uri(uri: String) -> Option<String> {
+    match uri.split("/").last() {
+        Some(id) => {
+            if id.chars().all(char::is_numeric) {
+                Some(id.to_string())
+            } else {
+                None
+            }
+        },
+        None => None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_id_from_uri_with_proper_uri() {
+        let uri = "https://example.com/@foo@example.com/1337".to_string();
+        assert_eq!(Some("1337".to_string()), id_from_uri(uri));
+    }
+
+    #[test]
+    fn test_id_from_uri_without_id_at_end() {
+        let uri = "https://example.com/@foo@example.com/1337fail".to_string();
+        assert_eq!(None, id_from_uri(uri));
+    }
+
+    #[test]
+    fn test_id_from_uri_with_only_id() {
+        let uri = "1337".to_string();
+        assert_eq!(Some("1337".to_string()), id_from_uri(uri));
+    }
 }
