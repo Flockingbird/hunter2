@@ -26,7 +26,7 @@ use error::ProcessingError;
 use ports::job_tags_repository::{JobTagsFileRepository, JobTagsRepository};
 use ports::search_index_repository::SearchIndexRepository;
 
-use hunter2::may_index::may_index;
+use hunter2::may_index::{may_index, is_stale};
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -122,16 +122,7 @@ fn handle_messages(
             info!("Handling: {}", received);
             match received {
                 Message::Vacancy(status) => {
-                    if search_index_repository.exists(&status.id) {
-                        info!("Skipping existing vacancy: {}", status.uri);
-                    } else if may_index(&status.account.url) {
-                        debug!("Handling vacancy: {:#?}", status);
-                        search_index_repository.add(&status.clone().into());
-                        client.favourite(&status.id).map_or_else(
-                            |_| info!("Favourited {}", &status.uri),
-                            |_| error!("Could not favourite {}", &status.uri),
-                        );
-                    }
+                    maybe_index(status, &search_index_repository, &client);
                 }
                 Message::NewMessage(new_status) => {
                     debug!("sending new status");
@@ -155,9 +146,33 @@ fn id_from_uri(uri: String) -> Option<String> {
             } else {
                 None
             }
-        },
-        None => None
+        }
+        None => None,
     }
+}
+
+fn maybe_index(status: Status, search_index_repository: &SearchIndexRepository, client: &Mastodon) {
+    if search_index_repository.exists(&status.id) {
+        info!("Skipping existing vacancy: {}", status.uri);
+        return;
+    }
+
+    if is_stale(&status.created_at) {
+        info!("Skipping because too old");
+        return;
+    }
+
+    if !may_index(&status.account.url) {
+        info!("Skipping because account does not allow indexing");
+        return;
+    }
+
+    debug!("Handling vacancy: {:#?}", status);
+    search_index_repository.add(&status.clone().into());
+    client.favourite(&status.id).map_or_else(
+        |_| info!("Favourited {}", &status.uri),
+        |_| error!("Could not favourite {}", &status.uri),
+    );
 }
 
 #[cfg(test)]
