@@ -4,7 +4,7 @@ use meilisearch_sdk::indexes::Index;
 use meilisearch_sdk::search::SearchResults;
 use predicates::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::process::Command;
+use std::{env, process::Command};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TestVacancy {
@@ -59,20 +59,15 @@ async fn delete_from_index() {
 }
 
 fn given_a_meilisearch_client() -> Client {
-    dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
-    let uri = dotenv::var("MEILI_URI").expect("MEILI_URI");
-    let key = dotenv::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
+    let uri = env::var("MEILI_URI").expect("MEILI_URI");
+    let key = env::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
 
     Client::new(uri.as_str(), key)
 }
 
 async fn given_a_clean_index() -> Index {
-    dotenv::from_filename(".env.test").expect("Attempt to load .env.test");
-    let uri = dotenv::var("MEILI_URI").expect("MEILI_URI");
-    let key = dotenv::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
-
-    println!("meili: {} with {}", uri, key);
-
+    let uri = env::var("MEILI_URI").expect("MEILI_URI");
+    let key = env::var("MEILI_ADMIN_KEY").expect("MEILI_ADMIN_KEY");
     let client = Client::new(uri.as_str(), key);
 
     let task = client.create_index("vacancies", Some("id")).await.unwrap();
