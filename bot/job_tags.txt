@@ -11,3 +11,4 @@ emploi
 jobangebot
 fedihire
 jerecrute
+vacature
