@@ -12,3 +12,4 @@ jobangebot
 fedihire
 jerecrute
 vacature
+jobfairy
