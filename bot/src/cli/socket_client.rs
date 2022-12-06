@@ -62,6 +62,8 @@ fn capture_updates(mastodon: elefren::Mastodon, tx: Sender<Message>) -> thread::
                 if has_job_related_tags(&status.tags, &job_tags_repository) {
                     debug!("Update {} is a vacancy", &status.id);
                     tx.send(Message::Vacancy(status)).unwrap();
+                } else {
+                    debug!("Ignore {}, not a vacancy", &status.id);
                 }
             }
         }
