@@ -40,8 +40,9 @@ HTTP/1.1 202
 PUT http://localhost:7700/indexes/vacancies/settings/filterable-attributes
 Authorization: Bearer {{meili_master_key}}
 [
-  "tags",
+  "created_at_ts",
   "language",
+  "tags",
   "url"
 ]
 

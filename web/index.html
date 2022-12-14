@@ -41,8 +41,9 @@
 
         const q = queryParams.get("q");
         const tags = queryParams.getAll("tags");
-        return customUrl  + [q, tags.join(',')].filter(n => n).join("/");
-      }
+        const includeOlder = getIncludeOlder() ? 'includeOlder' : null;
+        return customUrl  + [q, tags.join(','), includeOlder].filter(n => n).join("/");
+      };
 
       const urlFor = function({ query = null, offset = null, tags = [] } = {}) {
         let params = new URLSearchParams(urlParams);
@@ -56,11 +57,22 @@
         params.delete('tags');
         tags.forEach(tag => params.append('tags', tag));
         return '?' + params.toString();
-      }
+      };
 
       const getActiveTags = function() {
         return (urlParams.getAll('tags') || []);
       };
+
+      const getIncludeOlder = function() {
+        return (urlParams.get('include-older') || false);
+      }
+
+      const getShowAfter = function() {
+        const today = new Date;
+        // Subtract two months.
+        return addMonths(today, -2).getTime();
+      };
+
       const prefillDefault = function() {
         const defaultAmount = 10;
         const defaultSort = 'created_at_ts:desc';
@@ -113,7 +125,7 @@
           if (!result.exhaustiveNbHits) {
             insertPager(0 + perPage);
           }
-      }
+      };
 
       const doSearch = function(offset = 0) {
         const query = urlParams.get('q');
@@ -122,16 +134,25 @@
         var options =  {
           offset: offset,
           limit: perPage,
+          filter: [],
           facets: ['tags.name']
         }
 
         const tags = getActiveTags();
         if (tags.length > 0) {
-          options.filter = tags.map((tagName) => `tags.name = "${tagName}"`);
+          options.filter.push(...tags.map((tagName) => `tags.name = "${tagName}"`));
+        }
+
+        // When includeOlder is added, we should remove the filter.
+        // The logic is reversed, though: we add the filter always, unless,
+        // include-older param is in the url.
+        if (!getIncludeOlder()) {
+          const showAfter = getShowAfter();
+          options.filter.push(`created_at_ts > ${showAfter}`);
         }
 
         return index.search(query, options);
-      }
+      };
 
       const insertPager = function(offset) {
         const page_tmpl = document.getElementById('pager');
@@ -285,6 +306,15 @@
           document.getElementById('tags-container').classList.add('is-hidden');
         }
       };
+      
+      const addMonths = function(date, months) {
+        var d = date.getDate();
+        date.setMonth(date.getMonth() + +months);
+        if (date.getDate() != d) {
+          date.setDate(0);
+        }
+        return date;
+      }
 
       const strip = function(str) {
          const doc = new DOMParser().parseFromString(str, 'text/html');
