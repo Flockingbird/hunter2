@@ -26,7 +26,8 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         const query = urlParams.get('q');
-        if (query) {
+        const anyTags = (getActiveTags().length > 0);
+        if (query || anyTags) {
           doSearch().then(handleSearchResponse);
           const searchField = document.getElementById('search-field');
           searchField.value = query;
@@ -85,6 +86,22 @@
       const prefillDefault = function() {
         const defaultAmount = 10;
         const defaultSort = 'created_at_ts:desc';
+
+        index.search(null, { facets: ['tags'], filter: [`created_at_ts > ${getShowAfter()}`], limit: 0 })
+          .then(function(result) {
+            if (result.facetDistribution) {
+              const tags = extractFacetTags(result)
+                .filter(notCommonName)
+                .filter(notSpammy)
+                .sort(sortByCount)
+                .slice(0, 5);
+
+              insertTags(tags);
+
+              // TODO: make the block title configurable somehow
+              document.getElementById('tags-container').querySelector('h1').innerText = 'Popular Tags';
+            }
+          });
 
         index.search(null, { limit: defaultAmount, sort: [defaultSort] })
           .then(function(result) {
