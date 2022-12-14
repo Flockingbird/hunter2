@@ -45,13 +45,19 @@
         return customUrl  + [q, tags.join(','), includeOlder].filter(n => n).join("/");
       };
 
-      const urlFor = function({ query = null, offset = null, tags = [] } = {}) {
+      const urlFor = function({ query = null, offset = null, tags = [], includeOlder = false } = {}) {
         let params = new URLSearchParams(urlParams);
         if (query) {
           params.set('q', query);
         }
         if (offset) {
           params.set('offset', offset);
+        }
+
+        if (includeOlder) {
+          params.set('include-older', 'true');
+        } else {
+          params.delete('include-older');
         }
 
         params.delete('tags');
@@ -104,6 +110,8 @@
 
         if (!isExhaustive(result.offset, perPage, result.estimatedTotalHits)) {
           insertPager(offset + perPage);
+        } else if(!getIncludeOlder()) {
+          insertOlderLink();
         }
       }
 
@@ -124,6 +132,8 @@
 
           if (!isExhaustive(result.offset, perPage, result.estimatedTotalHits)) {
             insertPager(0 + perPage);
+          } else if(!getIncludeOlder()) {
+            insertOlderLink();
           }
       };
 
@@ -162,6 +172,16 @@
           event.preventDefault();
           doSearch(offset).then((result) => handleNextPage(result, offset));
         });  
+        results_container.appendChild(clone);
+      };
+
+      const insertOlderLink = function() {
+        const page_tmpl = document.getElementById('older');
+        var clone = page_tmpl.content.cloneNode(true);
+
+        clone.firstElementChild.href = urlFor({ tags: getActiveTags(), includeOlder: true });
+
+        const results_container = document.getElementById('results');
         results_container.appendChild(clone);
       };
 
@@ -459,6 +479,9 @@
     </template>
     <template id="pager">
       <button class="button is-medium is-fullwidth pager">More results</button>
+    </template>
+    <template id="older">
+      <a class="button is-medium is-fullwidth pager">Include any posts older than 2 months</a>
     </template>
   </body>
 </html>
