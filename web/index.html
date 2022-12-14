@@ -33,15 +33,15 @@
         countDocuments().then(renderDocumentsCount);
         plausible('pageview', { u: trackingUrl() });
       });
-      
-      const trackingUrl = function() {
-        const url = new URL(location.href)
-        const queryParams = new URLSearchParams(location.search)
-        let customUrl = url.protocol + "//" + url.hostname + url.pathname
 
-        const q = queryParams.get("q")
-        const tags = queryParams.getAll("tags")
-        return customUrl  + [q, tags.join(',')].filter(n => n).join("/")
+      const trackingUrl = function() {
+        const url = new URL(location.href);
+        const queryParams = new URLSearchParams(location.search);
+        let customUrl = url.protocol + "//" + url.hostname + url.pathname;
+
+        const q = queryParams.get("q");
+        const tags = queryParams.getAll("tags");
+        return customUrl  + [q, tags.join(',')].filter(n => n).join("/");
       }
 
       const urlFor = function({ query = null, offset = null, tags = [] } = {}) {
