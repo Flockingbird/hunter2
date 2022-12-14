@@ -25,8 +25,11 @@
       window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }
 
       document.addEventListener('DOMContentLoaded', () => {
-        if (urlParams.get('q')) {
+        const query = urlParams.get('q');
+        if (query) {
           doSearch().then(handleSearchResponse);
+          const searchField = document.getElementById('search-field');
+          searchField.value = query;
         } else {
           prefillDefault();
         }
