@@ -26,7 +26,7 @@ use error::ProcessingError;
 use ports::job_tags_repository::{JobTagsFileRepository, JobTagsRepository};
 use ports::search_index_repository::SearchIndexRepository;
 
-use hunter2::may_index::{may_index, is_stale};
+use hunter2::may_index::{may_index, is_stale, is_reply};
 
 // 5000 ms (5s) seems OK for a low-volume bot. The balance is to ensure we
 // have enough time to process all events that came in during the sleep time on
@@ -159,6 +159,11 @@ fn maybe_index(status: Status, search_index_repository: &SearchIndexRepository, 
 
     if is_stale(&status.created_at) {
         info!("Skipping because too old");
+        return;
+    }
+
+    if is_reply(&status.in_reply_to_id) {
+        info!("Skipping because a reply to another post");
         return;
     }
 

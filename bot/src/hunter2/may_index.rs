@@ -15,6 +15,10 @@ pub fn is_stale(created_at: &DateTime<Utc>) -> bool {
     created_at < &ago
 }
 
+pub fn is_reply(in_reply_to_id: &Option<String>) -> bool {
+    in_reply_to_id.is_some()
+}
+
 fn fetch(url: &str) -> String {
     let mut body = String::new();
 
@@ -94,5 +98,17 @@ mod tests {
     fn is_stale_is_true_with_old_dt() {
         let dt = offset::Utc::now() - Duration::days(STALE_AFTER_DAYS + 1);
         assert!(is_stale(&dt));
+    }
+
+    #[test]
+    fn is_reply_is_true_with_in_reply_to_id() {
+        let in_reply_to_id = Some("1337".to_string());
+        assert!(is_reply(&in_reply_to_id));
+    }
+
+    #[test]
+    fn is_reply_is_false_without_in_reply_to_id() {
+        let in_reply_to_id = None;
+        assert!(!is_reply(&in_reply_to_id));
     }
 }
