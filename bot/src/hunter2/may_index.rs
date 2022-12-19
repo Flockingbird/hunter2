@@ -1,9 +1,9 @@
-use chrono::{Duration, DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use reqwest::blocking::Client;
 use scraper::{Html, Selector};
 use std::io::Read;
 
-const STALE_AFTER_DAYS:i64 = 62;
+const STALE_AFTER_DAYS: i64 = 62;
 
 pub fn may_index(url: &str) -> bool {
     let html = fetch(url);
