@@ -39,6 +39,7 @@ pub enum Message {
     Vacancy(Status),
     Term,
 }
+
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -135,6 +136,7 @@ fn handle_messages(
             }
         }
         thread::sleep(THREAD_SLEEP_DURATION);
+        debug!("Message loop next iteration");
     })
 }
 

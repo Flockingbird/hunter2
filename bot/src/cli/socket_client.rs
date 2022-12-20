@@ -87,6 +87,7 @@ fn capture_notifications(
 ) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for event in mastodon.streaming_user().unwrap() {
+            debug!("Recieved an event: {:#?}", &event);
             if let Event::Notification(notification) = event {
                 debug!(
                     "Recieved a notification: {:#?}",
