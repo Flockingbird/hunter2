@@ -30,7 +30,7 @@ jobs:
             TAG_FILE: "./job_tags.txt"
           working_directory: "bot"
           command: |
-            echo 'export MEILI_ADMIN_KEY=$(./admin_key.sh)' >> "$BASH_ENV"
+            echo 'export MEILI_ADMIN_KEY=$(../admin_key.sh)' >> "$BASH_ENV"
             source "$BASH_ENV"
             cargo test --verbose
 
