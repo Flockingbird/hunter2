@@ -1,0 +1,46 @@
+---
+version: 2.1
+
+jobs:
+  test:
+    docker:
+      - image: cimg/rust:1.66.1
+      - image: getmeili/meilisearch:v0.29.0
+        environment:
+          MEILI_MASTER_KEY: "m3i7i3"
+
+    steps:
+      - checkout
+      - run:
+          name: "Install yamllint"
+          command: "apt-get update && apt-get install -y yamllint jq"
+      - run:
+          name: "Yamllint"
+          command: 'yamllint $(find -name "*.yml")'
+      - run:
+          name: "Cargo Check"
+          command: "cargo check --verbose --target-dir /target"
+          working_directory: "bot"
+      - run:
+          name: "Cargo Test"
+          command: |
+            echo 'export MEILI_ADMIN_KEY=$(./admin_key.sh)' >> "$BASH_ENV"
+            source "$BASH_ENV"
+            cargo test --verbose --target-dir /target
+          working_directory: "bot"
+
+  build:
+    docker:
+      - image: cimg/rust:1.66.1
+    steps:
+      - checkout
+      - run:
+          name: "Build"
+          command: "cargo build --release --verbose --target-dir /target"
+          working_directory: "bot"
+
+workflows:
+  prepare:
+    jobs:
+      - test
+      - build
