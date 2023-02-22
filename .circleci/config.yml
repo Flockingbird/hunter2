@@ -19,14 +19,14 @@ jobs:
           command: 'yamllint $(find -name "*.yml")'
       - run:
           name: "Cargo Check"
-          command: "cargo check --verbose --target-dir /target"
+          command: "cargo check --verbose"
           working_directory: "bot"
       - run:
           name: "Cargo Test"
           command: |
             echo 'export MEILI_ADMIN_KEY=$(./admin_key.sh)' >> "$BASH_ENV"
             source "$BASH_ENV"
-            cargo test --verbose --target-dir /target
+            cargo test --verbose
           working_directory: "bot"
 
   build:
@@ -36,7 +36,7 @@ jobs:
       - checkout
       - run:
           name: "Build"
-          command: "cargo build --release --verbose --target-dir /target"
+          command: "cargo build --release"
           working_directory: "bot"
 
 workflows:
