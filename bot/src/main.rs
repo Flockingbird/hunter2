@@ -141,7 +141,7 @@ fn handle_messages(
 }
 
 fn id_from_uri(uri: String) -> Option<String> {
-    match uri.split("/").last() {
+    match uri.split('/').last() {
         Some(id) => {
             if id.chars().all(char::is_numeric) {
                 Some(id.to_string())
